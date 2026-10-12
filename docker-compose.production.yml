@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a strong POSTGRES_PASSWORD}
+    volumes: ["database:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file: ${RUNTIME_ENV_FILE:-.env.production}
+    environment:
+      DEBUG: "False"
+      DB_ENGINE: postgresql
+      POSTGRES_HOST: db
+    depends_on:
+      db: {condition: service_healthy}
+    volumes: ["media:/app/private-media", "static:/app/staticfiles", "models:/app/ml/artifacts"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen(urllib.request.Request('http://localhost:8000/ready/', headers={'X-Forwarded-Proto':'https'}))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  web:
+    build:
+      context: .
+      dockerfile: deployment/frontend.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      backend: {condition: service_healthy}
+    ports: ["${HTTP_BIND:-80}:80", "${HTTPS_BIND:-443}:443"]
+    volumes: ["static:/srv/static:ro", "${TLS_DIRECTORY:-./deployment/tls}:/etc/nginx/tls:ro"]
+volumes:
+  database:
+  media:
+  static:
+  models:

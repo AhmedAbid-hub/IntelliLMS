@@ -1,0 +1,33 @@
+{
+  "database": "PostgreSQL 17 in local Docker",
+  "students": 2000,
+  "courses": 4,
+  "conditions": "Single sequential benchmark, DEBUG query capture enabled; backend/browser regression and container verification were running concurrently on the shared development host. Not a production capacity guarantee.",
+  "measurements": {
+    "grades_25": {
+      "seconds": 0.375,
+      "sql_queries": 14,
+      "rows": 25
+    },
+    "grades_100": {
+      "seconds": 0.092,
+      "sql_queries": 14,
+      "rows": 100
+    },
+    "workload": {
+      "seconds": 0.029,
+      "sql_queries": 6,
+      "rows": 1
+    },
+    "trends": {
+      "seconds": 2.314,
+      "sql_queries": 190,
+      "rows": 1
+    },
+    "csv": {
+      "seconds": 2.016,
+      "sql_queries": 185,
+      "rows": 2000
+    }
+  }
+}

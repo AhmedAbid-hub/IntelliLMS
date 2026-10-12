@@ -1,0 +1,102 @@
+{
+  "version": "demo-1ebe68e4d646",
+  "target": "risk_of_course_failure",
+  "features": [
+    "attendance_pct",
+    "assignment_pct",
+    "quiz_pct",
+    "completion_pct",
+    "activity_count"
+  ],
+  "mode": "demo",
+  "warning": "DEMO \u2014 SYNTHETIC DATA \u2014 NOT VALIDATED FOR REAL STUDENT USE",
+  "selected_model": "logistic_regression",
+  "seed": 42,
+  "rows": 1200,
+  "split_sizes": {
+    "train": 720,
+    "validation": 240,
+    "test": 240
+  },
+  "split_strategy": "Student-group-disjoint 60/20/20; validation F1 selection; refit train+validation; test once",
+  "validation_metrics": {
+    "logistic_regression": {
+      "accuracy": 0.8541666666666666,
+      "precision": 0.8068181818181818,
+      "recall": 0.797752808988764,
+      "f1": 0.8022598870056498,
+      "roc_auc": 0.9141305156633677,
+      "brier_score": 0.11366435218623624,
+      "confusion_matrix": [
+        [
+          134,
+          17
+        ],
+        [
+          18,
+          71
+        ]
+      ]
+    },
+    "random_forest": {
+      "accuracy": 0.8333333333333334,
+      "precision": 0.7951807228915663,
+      "recall": 0.7415730337078652,
+      "f1": 0.7674418604651163,
+      "roc_auc": 0.9085497432844705,
+      "brier_score": 0.11831405371130461,
+      "confusion_matrix": [
+        [
+          134,
+          17
+        ],
+        [
+          23,
+          66
+        ]
+      ]
+    },
+    "gradient_boosting": {
+      "accuracy": 0.7916666666666666,
+      "precision": 0.76,
+      "recall": 0.6404494382022472,
+      "f1": 0.6951219512195121,
+      "roc_auc": 0.8728328000595281,
+      "brier_score": 0.14734019174498172,
+      "confusion_matrix": [
+        [
+          133,
+          18
+        ],
+        [
+          32,
+          57
+        ]
+      ]
+    }
+  },
+  "test_metrics": {
+    "accuracy": 0.8291666666666667,
+    "precision": 0.7326732673267327,
+    "recall": 0.8409090909090909,
+    "f1": 0.783068783068783,
+    "roc_auc": 0.9211273923444976,
+    "brier_score": 0.11797606888324934,
+    "confusion_matrix": [
+      [
+        125,
+        27
+      ],
+      [
+        14,
+        74
+      ]
+    ]
+  },
+  "thresholds": {
+    "moderate": 0.35,
+    "high": 0.65
+  },
+  "artifact": "demo-1ebe68e4d646.joblib",
+  "sha256": "90fb9db022ae89df3838659b2632629ffec12a4c8b6f0baac87aac7751f7f420"
+}

@@ -1,0 +1,55 @@
+name: Tests
+on: [push, pull_request]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: intellilms
+          POSTGRES_USER: intellilms
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U intellilms" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DEBUG: "True"
+      SECRET_KEY: ci-only-secret
+      DB_ENGINE: postgresql
+      POSTGRES_DB: intellilms
+      POSTGRES_USER: intellilms
+      POSTGRES_PASSWORD: ci-only-password
+      POSTGRES_HOST: localhost
+      ALLOWED_HOSTS: testserver,localhost
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install -r backend/requirements.lock.txt
+      - run: python backend/manage.py check
+      - run: python backend/manage.py migrate --noinput
+      - run: python backend/manage.py makemigrations --check --dry-run
+      - run: cd backend && pytest
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - run: cd frontend && npm ci && npm test && npm run build
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - run: pip install -r backend/requirements.lock.txt
+      - run: cd frontend && npm ci && npx playwright install --with-deps chromium
+      - run: cd frontend && npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failure-traces
+          path: frontend/test-results

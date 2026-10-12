@@ -1,0 +1,28 @@
+# Functional requirements
+
+Each requirement below describes implemented behavior; broader original requirements are evaluated in requirements-audit.md.
+
+| ID | Behavior | Implementation |
+|---|---|---|
+| FR01 | Authenticate, select an active institute, change/reset password | accounts/auth.py |
+| FR02 | Enforce institute, department, course and self access | accounts/scope.py and scoped viewsets |
+| FR03 | Manage academic units, years, terms, programs, sections and course definitions | academics models/views/serializers |
+| FR04 | Assign teachers, create term offerings, enroll students | Offering and Enrollment APIs/forms |
+| FR05 | Invite members individually or atomically from CSV | MembershipViewSet; configurable email backend |
+| FR06 | Publish lessons, order modules/lessons, track completion | Learning APIs and course pages |
+| FR07 | Validate and protect learning files and submitted attachments | Material/Submission download actions |
+| FR08 | Enforce assignment deadlines, late policies and resubmission rules | Assignment.submit |
+| FR09 | Grade assignments, give feedback, control release | Submission.grade |
+| FR10 | Timed quizzes, attempt limits, answer saving, automated and manual grading | Quiz.start and Attempt actions |
+| FR11 | Reusable private question banks | BankQuestion CRUD and copy-to-quiz action |
+| FR12 | Bulk attendance and attendance percentages | AttendanceSession.mark and analytics |
+| FR13 | Manual assessment marks and three-category weighted provisional grades | ManualGrade, Offering weights, gradebook service |
+| FR14 | Institute pass threshold and terminology metadata | Institute settings |
+| FR15 | Weekly timetable with room, offering and instructor overlap checks | Timetable serializer |
+| FR16 | Audience-scoped announcements and personal notifications | Learning notification APIs |
+| FR17 | Idempotent upcoming-deadline reminders | notify_deadlines management command |
+| FR18 | Course/institute/department scope reports and CSV export | insights services/views |
+| FR19 | Synthetic and historical CSV model training, evaluation and trusted inference | ml/train.py and ml/inference.py |
+| FR20 | Fictional demonstration data and automated workflow verification | seed_demo, pytest, Vitest, Playwright |
+
+Academic terms are configurable date intervals; programs and sections model school grades and college/university structures. Question banks copy into quizzes instead of creating mutable shared live exam questions. Manual assessment weighting defaults to zero until explicitly configured; weights must total 100.

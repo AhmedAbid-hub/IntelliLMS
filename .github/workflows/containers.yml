@@ -1,0 +1,46 @@
+name: Production container smoke test
+on: [push, pull_request]
+jobs:
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create disposable test configuration and TLS certificate
+        run: |
+          mkdir -p deployment/tls
+          openssl req -x509 -nodes -newkey rsa:2048 -days 1 -subj '/CN=localhost' -keyout deployment/tls/privkey.pem -out deployment/tls/fullchain.pem
+          cat > .env.production <<'EOF'
+          DEBUG=False
+          SECRET_KEY=ci-only-disposable-container-test-secret-at-least-fifty-characters
+          ALLOWED_HOSTS=localhost,127.0.0.1
+          CSRF_TRUSTED_ORIGINS=https://localhost
+          FRONTEND_URL=https://localhost
+          DB_ENGINE=postgresql
+          POSTGRES_DB=intellilms
+          POSTGRES_USER=intellilms
+          POSTGRES_PASSWORD=ci-only-disposable-password
+          EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+          EOF
+      - name: Build and initialize production services
+        run: |
+          docker compose --env-file .env.production -f docker-compose.production.yml config --quiet
+          docker compose --env-file .env.production -f docker-compose.production.yml build
+          docker compose --env-file .env.production -f docker-compose.production.yml up -d db --wait
+          docker compose --env-file .env.production -f docker-compose.production.yml run --rm backend python manage.py migrate --noinput
+          docker compose --env-file .env.production -f docker-compose.production.yml run --rm backend python manage.py collectstatic --noinput
+          docker compose --env-file .env.production -f docker-compose.production.yml up -d --wait --wait-timeout 120
+      - name: Verify proxy, readiness, access control and edge throttling
+        run: |
+          docker compose --env-file .env.production -f docker-compose.production.yml exec -T web nginx -t
+          curl --retry 5 --retry-connrefused -kfsS https://localhost/ready/
+          curl -kfsS https://localhost/ -o /tmp/intellilms-index.html
+          test "$(curl -ks -o /dev/null -w '%{http_code}' https://localhost/api/v1/grades/)" = 403
+          for i in $(seq 1 20); do curl -ks -X POST -o /dev/null -w '%{http_code}\n' https://localhost/api/v1/auth/login/; done > /tmp/auth-status.txt
+          grep -q '^429$' /tmp/auth-status.txt
+      - name: Logs
+        if: failure()
+        run: docker compose --env-file .env.production -f docker-compose.production.yml logs --tail=100
+      - name: Remove disposable CI services
+        if: always()
+        run: docker compose --env-file .env.production -f docker-compose.production.yml down --volumes

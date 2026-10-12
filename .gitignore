@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+.env.production
+deployment/tls/
+*.tsbuildinfo
+*.sqlite3
+node_modules/
+dist/
+private-media/
+staticfiles/
+backend/ml/artifacts/*.joblib
+playwright-report/
+test-results/
+*.log
