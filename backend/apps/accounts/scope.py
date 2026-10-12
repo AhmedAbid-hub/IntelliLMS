@@ -1,5 +1,12 @@
+"""Institute-scoped authorization helpers for IntelliLMS.
+
+Platform superusers may operate without an institute selected in the session.
+Institute-bound operations must still explicitly validate their target institute.
+"""
+
 from django.db.models import Q
 from rest_framework.exceptions import PermissionDenied, ValidationError
+
 from .models import Institute, Membership
 from apps.academics.models import Offering
 
@@ -10,6 +17,7 @@ class Scope:
         if cached is not None:
             self.__dict__.update(cached.__dict__)
             return
+
         self.user = request.user
         selected = request.session.get("institute_id")
         self.institute = (
@@ -17,27 +25,40 @@ class Scope:
             if selected
             else None
         )
-        if not self.institute:
-            raise PermissionDenied("Select an active institute first.")
-        self.membership = Membership.objects.filter(
-            user=self.user, institute=self.institute, active=True
-        ).first()
+
+        # A platform Super Administrator is not required to select an institute
+        # simply to manage platform accounts or provision institute admins.
         if self.user.is_superuser:
             self.role = "superadmin"
-        elif self.membership:
-            self.role = self.membership.role
+            self.membership = None
         else:
-            raise PermissionDenied("No active membership in this institute.")
+            if self.institute is None:
+                raise PermissionDenied("Select an active institute first.")
+            self.membership = Membership.objects.filter(
+                user=self.user, institute=self.institute, active=True
+            ).first()
+            if self.membership is None:
+                raise PermissionDenied("No active membership in this institute.")
+            self.role = self.membership.role
+
         request._intellilms_scope = self
 
     def require(self, *roles):
         if self.role not in roles and self.role != "superadmin":
             raise PermissionDenied("Your role cannot perform this action.")
 
+    def _require_institute(self):
+        if self.institute is None:
+            raise PermissionDenied("Select an active institute first.")
+        return self.institute
+
     def offerings(self):
         if self.role == "superadmin":
-            raise PermissionDenied("Platform accounts have aggregate oversight, not routine access to individual academic records.")
-        qs = Offering.objects.filter(institute=self.institute)
+            raise PermissionDenied(
+                "Platform accounts have aggregate oversight, not routine access "
+                "to individual academic records."
+            )
+        qs = Offering.objects.filter(institute=self._require_institute())
         if self.role == "head":
             qs = (
                 qs.filter(course__unit_id=self.membership.unit_id)
@@ -47,7 +68,9 @@ class Scope:
         elif self.role == "teacher":
             qs = qs.filter(teachers=self.user)
         elif self.role == "student":
-            qs = qs.filter(enrollments__student=self.user, enrollments__active=True)
+            qs = qs.filter(
+                enrollments__student=self.user, enrollments__active=True
+            )
         return qs.distinct()
 
     def check_offering(self, offering, write=False):
@@ -57,10 +80,20 @@ class Scope:
             raise ValidationError("Archived course offerings cannot be changed.")
 
     def people(self):
-        qs = Membership.objects.filter(institute=self.institute, active=True)
+        # This helper represents a specific institute's roster. Superusers
+        # without a selected institute must not receive an unbounded roster.
+        qs = Membership.objects.filter(
+            institute=self._require_institute(), active=True
+        )
         if self.role == "head":
             qs = (
-                qs.filter(Q(unit_id=self.membership.unit_id) | Q(appointments__unit_id=self.membership.unit_id, appointments__active=True))
+                qs.filter(
+                    Q(unit_id=self.membership.unit_id)
+                    | Q(
+                        appointments__unit_id=self.membership.unit_id,
+                        appointments__active=True,
+                    )
+                )
                 if self.membership.unit_id
                 else qs.none()
             )
