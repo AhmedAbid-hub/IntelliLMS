@@ -13,6 +13,7 @@ import {
 
 import { Pagination } from "../../components/ReportControls";
 import { ClassAnalysis } from "./ClassAnalysis";
+import { PredictionContext } from "./PredictionContext";
 import { useAuth } from "../auth/Auth";
 import {
   api,
@@ -183,7 +184,7 @@ function RiskSummary({
               lineHeight: 1.6,
             }}
           >
-            Latest stored risk estimate for each learner-course pair.
+            {data.basis}
           </p>
         </div>
 
@@ -770,6 +771,7 @@ function EstimateHistory({
           }
           title="Estimate details"
         >
+          <PredictionContext info={detail.model_info} warning={detail.warning} observations={detail.observations} />
           <p className="info-strip">
             Model {String(detail.version ?? "—")}
             {" · "}
@@ -1207,6 +1209,7 @@ function ClassInsights({
         <ClassAnalysis
           key={selected.id}
           offering={selected.id}
+          canGenerate={canGenerate}
         />
       </div>
 
@@ -1239,7 +1242,7 @@ export function Predictions({
   const isStudent = role === "student";
 
   const canGenerate =
-    isTeacher || isHead;
+    isTeacher;
 
   const [view, setView] = useState<
     "overview" | "classes"
@@ -1312,6 +1315,7 @@ export function Predictions({
         title={title}
         description={description}
       />
+      {model.data?.status === "ready" && <PredictionContext info={model.data} warning={model.data.warning} />}
 
       {!offering && !isStudent && (
         <div

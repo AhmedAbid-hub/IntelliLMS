@@ -74,6 +74,7 @@ export function LinkAccount({ row }: LinkAccountProps) {
       await post("memberships/attach/", {
         user: row.id,
         role: "admin",
+        institute: instituteId,
       });
 
       await client.invalidateQueries();

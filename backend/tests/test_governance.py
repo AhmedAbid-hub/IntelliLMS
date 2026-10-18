@@ -1,4 +1,5 @@
 import pytest
+from apps.accounts.models import Membership
 from datetime import date
 from django.utils import timezone
 from apps.learning.models import ManualGrade, AttendanceSession, Attendance, CorrectionRequest, Assignment, Submission, Quiz, Question, Attempt
@@ -22,8 +23,12 @@ def test_finalized_grade_correction_review_permissions_and_override(world,client
     decision=f'/api/v1/corrections/{proposed.data["id"]}/decide/'
     data={"decision":"approved","reason":"Verified calculation against marking sheet"}
     assert teacher.post(decision,data,format="json").status_code==403
+    # The current architecture request requires explicit course delegation.
+    assert not a["offering"].head_correction_review
     assert head.post(decision,data,format="json").status_code==403
-    assert admin.post(decision,data,format="json").status_code==200
+    a["offering"].head_correction_review=True;a["offering"].save()
+    assert client_for(world["b"],"head").post(decision,data,format="json").status_code==404
+    assert head.post(decision,data,format="json").status_code==200
     grade.refresh_from_db();assert grade.marks==55 and grade.finalized
     assert admin.post(decision,data,format="json").status_code==400
     assert Audit.objects.filter(object_id=str(grade.pk),action="ManualGrade.history").exists()
@@ -47,6 +52,9 @@ def test_attendance_finalization_delegation_rejection_and_stale_proposals(world,
     Attendance.objects.filter(pk=row.pk).update(status="late")
     assert head.post(url,{"decision":"approved","reason":"Department register verified"},format="json").status_code==400
     assert head.post(url,{"decision":"rejected","reason":"New attendance evidence requires a fresh request"},format="json").status_code==200
+    assert head.post("/api/v1/corrections/",data,format="json").status_code==403
+    Membership.objects.filter(user=a["head"], institute=a["institute"]).update(can_teach=True)
+    a["offering"].teachers.add(a["head"])
     proposed=head.post("/api/v1/corrections/",data,format="json");assert proposed.status_code==201
     url=f'/api/v1/corrections/{proposed.data["id"]}/decide/'
     assert head.post(url,{"decision":"approved","reason":"My own request cannot be approved"},format="json").status_code==403

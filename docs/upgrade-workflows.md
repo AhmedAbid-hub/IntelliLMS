@@ -22,7 +22,7 @@ On a course card or the course overview, **Enroll students** opens server-search
 
 ## Course workspace
 
-Staff opens a course for overview and creation shortcuts, lessons, materials, assignments, quizzes, modules, students, attendance, grades, class performance and experimental AI insights. The embedded gradebook/export and trends/prediction summaries remain bound to that course. Existing student lesson/material/quiz workflows are preserved. AI estimates are synthetic demonstrations, not validated educational decisions.
+Staff opens a course for overview and creation shortcuts, lessons, materials, assignments, quizzes, modules, students, attendance, grades, class performance and experimental AI insights. The embedded gradebook/export and trends/prediction summaries remain bound to that course. Existing student lesson/material/quiz workflows are preserved. Active AI estimates use external public OULAD assessment data and remain experimental, not validated educational decisions. Existing synthetic history keeps its original label; see ml-methodology.md.
 
 ## Quiz authoring
 

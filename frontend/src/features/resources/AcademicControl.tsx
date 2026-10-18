@@ -11,27 +11,22 @@ import {
   ShieldCheck,
   XCircle,
 } from "lucide-react";
-
 import {
   api,
   post,
   type Page,
   type RecordData,
 } from "../../lib/api";
-
 import { Button } from "../../components/ui/button";
 import { Dialog } from "../../components/ui/dialog";
-
 import {
   PageHeader,
   ErrorState,
   Loading,
   Empty,
 } from "../../components/shared";
-
 import { Pagination } from "../../components/ReportControls";
 import { useAuth } from "../auth/Auth";
-
 const kinds: Record<string, string> = {
   submissions: "submission",
   attempts: "attempt",
@@ -39,8 +34,8 @@ const kinds: Record<string, string> = {
   attendance: "attendance",
   "attendance-sessions": "attendance_session",
 };
-
 type Control = {
+  lock_reason?: string | null;
   kind: string;
   target: string;
   finalized: boolean;
@@ -53,9 +48,7 @@ type Control = {
     marks: number;
   }[];
 };
-
 type CorrectionStatus = "pending" | "approved" | "rejected";
-
 const statusOptions: {
   value: string;
   label: string;
@@ -65,7 +58,6 @@ const statusOptions: {
   { value: "rejected", label: "Rejected" },
   { value: "", label: "All requests" },
 ];
-
 const statusStyles = {
   pending: {
     color: "#986500",
@@ -89,43 +81,33 @@ const statusStyles = {
     label: "Rejected",
   },
 } as const;
-
 function readable(value: unknown): string {
   if (value === null || value === undefined || value === "") {
     return "—";
   }
-
   return String(value);
 }
-
 function humanize(value: unknown): string {
   const text = readable(value);
-
   if (text === "—") {
     return text;
   }
-
   return text
     .replaceAll("_", " ")
     .replaceAll("-", " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
-
 function formatDate(value: unknown): string {
   if (!value) {
     return "—";
   }
-
   const date = new Date(String(value));
-
   return Number.isNaN(date.getTime())
     ? "—"
     : date.toLocaleString();
 }
-
 function getStatus(value: unknown): CorrectionStatus | null {
   const status = String(value ?? "").toLowerCase();
-
   if (
     status === "pending" ||
     status === "approved" ||
@@ -133,10 +115,8 @@ function getStatus(value: unknown): CorrectionStatus | null {
   ) {
     return status;
   }
-
   return null;
 }
-
 function StatusBadge({
   status,
   emergency = false,
@@ -145,14 +125,11 @@ function StatusBadge({
   emergency?: boolean;
 }) {
   const normalized = getStatus(status);
-
   if (!normalized) {
     return <span className="pill">{humanize(status)}</span>;
   }
-
   const style = statusStyles[normalized];
   const Icon = style.Icon;
-
   return (
     <div
       style={{
@@ -180,7 +157,6 @@ function StatusBadge({
         <Icon size={14} aria-hidden="true" />
         {style.label}
       </span>
-
       {emergency && (
         <span
           style={{
@@ -203,7 +179,6 @@ function StatusBadge({
     </div>
   );
 }
-
 function SectionHeading({
   title,
   description,
@@ -223,7 +198,6 @@ function SectionHeading({
       >
         {title}
       </h3>
-
       {description && (
         <p
           className="muted"
@@ -239,7 +213,6 @@ function SectionHeading({
     </div>
   );
 }
-
 export function AcademicControl({
   resource,
   row,
@@ -248,14 +221,10 @@ export function AcademicControl({
   row: RecordData;
 }) {
   const { role } = useAuth();
-
   const [open, setOpen] = useState(false);
-
   const kind = kinds[resource];
-
   const allowed =
     !!kind && ["admin", "head", "teacher"].includes(role);
-
   const query = useQuery({
     queryKey: ["academic-control", kind, row.id],
     queryFn: () =>
@@ -266,23 +235,20 @@ export function AcademicControl({
       ),
     enabled: open && allowed,
   });
-
   if (!allowed) {
     return null;
   }
-
   return (
     <>
       <Button variant="outline" onClick={() => setOpen(true)}>
         <ShieldCheck size={15} aria-hidden="true" />
-        Academic control
+        Request correction
       </Button>
-
       {open && (
         <Dialog
           open
-          title="Academic record control"
-          onOpenChange={() => setOpen(false)}
+          title="Grade & attendance record correction"
+          onOpenChange={(nextOpen) => { if (!nextOpen) setOpen(false); }}
         >
           {query.isPending ? (
             <Loading />
@@ -299,11 +265,9 @@ export function AcademicControl({
     </>
   );
 }
-
 function ControlForm({ data }: { data: Control }) {
   const { role } = useAuth();
   const client = useQueryClient();
-
   const [reason, setReason] = useState("");
   const [values, setValues] = useState<Record<string, unknown>>(
     data.current,
@@ -312,21 +276,17 @@ function ControlForm({ data }: { data: Control }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
   const [status, setStatus] = useState("");
-
   const canRequestCorrection = [
     "admin",
     "head",
     "teacher",
   ].includes(role);
-
   const canFinalize = role === "admin" && data.can_finalize;
   const canEmergencyOverride = canFinalize;
-
   const manual = (values.manual_marks || {}) as Record<
     string,
     number
   >;
-
   async function execute(
     path: string,
     body: unknown,
@@ -335,11 +295,9 @@ function ControlForm({ data }: { data: Control }) {
     if (busy) {
       return;
     }
-
     setBusy(true);
     setError(undefined);
     setStatus("");
-
     try {
       await post(path, body);
       await client.invalidateQueries();
@@ -350,7 +308,6 @@ function ControlForm({ data }: { data: Control }) {
       setBusy(false);
     }
   }
-
   function correctionPayload() {
     const proposed =
       data.kind === "attendance"
@@ -366,7 +323,6 @@ function ControlForm({ data }: { data: Control }) {
               feedback: values.feedback || "",
               released: !!values.released,
             };
-
     return {
       kind: data.kind,
       target: data.target,
@@ -374,7 +330,6 @@ function ControlForm({ data }: { data: Control }) {
       proposed,
     };
   }
-
   return (
     <>
       <div
@@ -394,26 +349,22 @@ function ControlForm({ data }: { data: Control }) {
           ) : (
             <FilePenLine size={17} aria-hidden="true" />
           )}
-
           <strong>
             {data.finalized
               ? "Finalized academic record"
               : "Academic record not finalized"}
           </strong>
         </div>
-
         <p style={{ margin: "8px 0 0" }}>
           {data.finalized
             ? "Ordinary edits are locked. Approved corrections preserve the finalized status."
-            : "Existing authorized teaching workflows remain available."}
+            : data.lock_reason ? `${data.lock_reason} Use an audited correction.` : "Existing authorized teaching workflows remain available."}
         </p>
       </div>
-
-      {canRequestCorrection ? (
+      {canRequestCorrection && data.kind !== "attendance_session" ? (
         <form
           onSubmit={(event) => {
             event.preventDefault();
-
             void execute(
               emergency
                 ? "corrections/emergency/"
@@ -426,10 +377,9 @@ function ControlForm({ data }: { data: Control }) {
           }}
         >
           <SectionHeading
-            title="Request an academic correction"
+            title="Request a grade or attendance correction"
             description="Provide the proposed change and a reason. The original record remains unchanged until an authorized decision is made."
           />
-
           {data.kind === "attendance_session" ? (
             <p>
               <Link
@@ -444,7 +394,6 @@ function ControlForm({ data }: { data: Control }) {
           ) : data.kind === "attendance" ? (
             <label>
               Proposed attendance status
-
               <select
                 value={String(values.status ?? "")}
                 onChange={(event) =>
@@ -471,7 +420,6 @@ function ControlForm({ data }: { data: Control }) {
               {data.questions?.map((question) => (
                 <label key={question.id}>
                   {question.prompt} (out of {question.marks})
-
                   <input
                     aria-label={`Corrected marks: ${question.prompt}`}
                     type="number"
@@ -499,7 +447,6 @@ function ControlForm({ data }: { data: Control }) {
             <>
               <label>
                 Proposed marks
-
                 <input
                   type="number"
                   min="0"
@@ -514,10 +461,8 @@ function ControlForm({ data }: { data: Control }) {
                   }
                 />
               </label>
-
               <label>
                 Proposed feedback
-
                 <textarea
                   value={String(values.feedback ?? "")}
                   onChange={(event) =>
@@ -528,7 +473,6 @@ function ControlForm({ data }: { data: Control }) {
                   }
                 />
               </label>
-
               <label className="checkbox-label">
                 <input
                   type="checkbox"
@@ -544,10 +488,8 @@ function ControlForm({ data }: { data: Control }) {
               </label>
             </>
           )}
-
           <label>
             Reason for this academic action
-
             <textarea
               required
               minLength={5}
@@ -559,7 +501,6 @@ function ControlForm({ data }: { data: Control }) {
               placeholder="Explain why this correction is necessary..."
             />
           </label>
-
           {data.kind !== "attendance_session" && (
             <>
               {canEmergencyOverride && (
@@ -575,7 +516,6 @@ function ControlForm({ data }: { data: Control }) {
                   (audited)
                 </label>
               )}
-
               {emergency && (
                 <p
                   style={{
@@ -592,8 +532,7 @@ function ControlForm({ data }: { data: Control }) {
                   when authorized and necessary.
                 </p>
               )}
-
-              <Button disabled={busy}>
+              <Button disabled={busy || reason.trim().length < 5}>
                 {busy
                   ? "Saving…"
                   : emergency
@@ -602,7 +541,6 @@ function ControlForm({ data }: { data: Control }) {
               </Button>
             </>
           )}
-
           {canFinalize && data.kind !== "attendance" && (
             <Button
               type="button"
@@ -628,9 +566,7 @@ function ControlForm({ data }: { data: Control }) {
                 : "Finalize record"}
             </Button>
           )}
-
           {!!error && <ErrorState error={error} />}
-
           {status && (
             <p role="status" className="info-strip">
               {status}
@@ -639,11 +575,18 @@ function ControlForm({ data }: { data: Control }) {
         </form>
       ) : (
         <p className="muted">
-          You can review this academic record, but you
-          cannot request corrections.
+          {data.kind === "attendance_session"
+            ? "Open an individual attendance record to request a correction."
+            : "You can review this academic record, but you cannot request corrections."}
         </p>
       )}
-
+      {data.kind === "attendance_session" && (
+        <p>
+          <Link className="text-link" to={`/attendance?session=${encodeURIComponent(data.target)}`}>
+            Open individual attendance records to request corrections →
+          </Link>
+        </p>
+      )}
       <div style={{ marginTop: 20 }}>
         <Link className="text-link" to="/academic-reviews">
           <History
@@ -657,7 +600,6 @@ function ControlForm({ data }: { data: Control }) {
     </>
   );
 }
-
 function Values({
   label,
   values,
@@ -685,7 +627,6 @@ function Values({
       >
         {label}
       </h3>
-
       <dl style={{ margin: 0 }}>
         {Object.entries(values)
           .filter(([key]) => key !== "manual_marks")
@@ -709,7 +650,6 @@ function Values({
               >
                 {humanize(key)}
               </dt>
-
               <dd
                 style={{
                   margin: 0,
@@ -729,7 +669,6 @@ function Values({
               </dd>
             </div>
           ))}
-
         {questions?.map((question) => (
           <div
             key={question.id}
@@ -745,7 +684,6 @@ function Values({
             <dt style={{ color: "#718078" }}>
               {question.prompt}
             </dt>
-
             <dd style={{ margin: 0, fontWeight: 650 }}>
               {String(
                 (
@@ -761,7 +699,6 @@ function Values({
     </section>
   );
 }
-
 function Decision({
   row,
   onClose,
@@ -771,12 +708,10 @@ function Decision({
 }) {
   const { user } = useAuth();
   const client = useQueryClient();
-
   const [decision, setDecision] = useState("approved");
   const [reason, setReason] = useState("");
   const [error, setError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
-
   const current = useQuery({
     queryKey: [
       "academic-control",
@@ -790,30 +725,26 @@ function Decision({
         )}&target=${encodeURIComponent(String(row.target))}`,
       ),
   });
-
   const original =
     row.original &&
     typeof row.original === "object" &&
     !Array.isArray(row.original)
       ? (row.original as Record<string, unknown>)
       : {};
-
   const proposed =
     row.proposed &&
     typeof row.proposed === "object" &&
     !Array.isArray(row.proposed)
       ? (row.proposed as Record<string, unknown>)
       : {};
-
   const canDecide =
     row.status === "pending" &&
     current.data?.can_review === true &&
     String(row.requester) !== String(user?.id);
-
   return (
     <Dialog
       open
-      title="Review academic correction"
+      title="Grade & Attendance Correction Review"
       onOpenChange={(nextOpen) => {
         if (!nextOpen && !busy) {
           onClose();
@@ -840,7 +771,6 @@ function Decision({
           >
             {readable(row.offering_label)}
           </h3>
-
           <p
             className="muted"
             style={{
@@ -851,13 +781,11 @@ function Decision({
             {humanize(row.kind)} correction
           </p>
         </div>
-
         <StatusBadge
           status={row.status}
           emergency={!!row.emergency}
         />
       </div>
-
       <div
         style={{
           display: "grid",
@@ -873,7 +801,6 @@ function Decision({
             {readable(row.requester_label)}
           </p>
         </div>
-
         <div>
           <small className="muted">Requested at</small>
           <p style={{ margin: "5px 0 0", fontWeight: 650 }}>
@@ -881,7 +808,6 @@ function Decision({
           </p>
         </div>
       </div>
-
       <div
         style={{
           background: "#f4f8f5",
@@ -894,7 +820,6 @@ function Decision({
         <strong style={{ fontSize: 13 }}>
           Request reason
         </strong>
-
         <p
           style={{
             margin: "7px 0 0",
@@ -905,7 +830,6 @@ function Decision({
           {readable(row.reason)}
         </p>
       </div>
-
       <div
         style={{
           display: "grid",
@@ -920,32 +844,25 @@ function Decision({
           values={original}
           questions={current.data?.questions}
         />
-
         <Values
           label="Proposed correction"
           values={proposed}
           questions={current.data?.questions}
         />
       </div>
-
       {current.isPending && <Loading />}
-
       {current.isError && (
         <ErrorState error={current.error} />
       )}
-
       {canDecide ? (
         <form
           onSubmit={async (event) => {
             event.preventDefault();
-
             if (busy) {
               return;
             }
-
             setBusy(true);
             setError(undefined);
-
             try {
               await post(
                 `corrections/${String(row.id)}/decide/`,
@@ -954,7 +871,6 @@ function Decision({
                   reason,
                 },
               );
-
               await client.invalidateQueries();
               onClose();
             } catch (err) {
@@ -965,13 +881,11 @@ function Decision({
           }}
         >
           <SectionHeading
-            title="Review decision"
+            title="Correction decision"
             description="Check the recorded and proposed values before approving or rejecting this correction."
           />
-
           <label>
             Decision
-
             <select
               value={decision}
               onChange={(event) =>
@@ -981,16 +895,13 @@ function Decision({
               <option value="approved">
                 Approve correction
               </option>
-
               <option value="rejected">
                 Reject correction
               </option>
             </select>
           </label>
-
           <label>
             Decision reason
-
             <textarea
               required
               minLength={5}
@@ -1002,9 +913,7 @@ function Decision({
               placeholder="Explain the reason for your decision..."
             />
           </label>
-
           {!!error && <ErrorState error={error} />}
-
           <Button disabled={busy || reason.trim().length < 5}>
             {busy
               ? "Saving decision…"
@@ -1021,13 +930,14 @@ function Decision({
           {row.status === "pending"
             ? current.isPending
               ? "Checking review permissions…"
-              : "This request is awaiting an authorized reviewer. Requesters cannot approve their own corrections."
+              : current.isError
+                ? "Unable to verify review permissions. Please try again."
+                : "This request is awaiting an authorized reviewer. Requesters cannot approve their own corrections."
             : (
                 <>
                   <strong>
                     Decision: {humanize(row.status)}
                   </strong>
-
                   {row.decision_reason && (
                     <p style={{ margin: "7px 0 0" }}>
                       {String(row.decision_reason)}
@@ -1040,12 +950,10 @@ function Decision({
     </Dialog>
   );
 }
-
 export function AcademicReviews() {
   const [status, setStatus] = useState("pending");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<RecordData>();
-
   const query = useQuery({
     queryKey: ["academic-reviews", status, page],
     queryFn: () =>
@@ -1055,16 +963,13 @@ export function AcademicReviews() {
         )}&page=${page}`,
       ),
   });
-
   const count = query.data?.count ?? 0;
-
   return (
     <>
       <PageHeader
-        title="Academic reviews"
-        description="Review grade and attendance corrections with recorded values, proposed changes and reasons. Teachers can follow requests for their assigned courses."
+        title="Grade & Attendance Corrections"
+        description="Review and track requests to correct recorded grades and attendance. Teachers can follow requests for their assigned courses."
       />
-
       <section
         className="panel padded"
         style={{
@@ -1091,7 +996,6 @@ export function AcademicReviews() {
             >
               Correction requests
             </h2>
-
             <p
               className="muted"
               style={{
@@ -1102,7 +1006,6 @@ export function AcademicReviews() {
               Review requests and track their decisions.
             </p>
           </div>
-
           {!query.isPending && !query.isError && (
             <span className="count-badge">
               {count.toLocaleString()}{" "}
@@ -1110,7 +1013,6 @@ export function AcademicReviews() {
             </span>
           )}
         </div>
-
         <div
           style={{
             display: "flex",
@@ -1123,7 +1025,6 @@ export function AcademicReviews() {
         >
           {statusOptions.map((option) => {
             const active = status === option.value;
-
             return (
               <Button
                 key={option.value}
@@ -1138,7 +1039,6 @@ export function AcademicReviews() {
             );
           })}
         </div>
-
         {query.isPending ? (
           <Loading />
         ) : query.isError ? (
@@ -1171,7 +1071,6 @@ export function AcademicReviews() {
                 <Search size={23} />
               )}
             </div>
-
             <h3
               style={{
                 margin: "0 0 8px",
@@ -1187,7 +1086,6 @@ export function AcademicReviews() {
                     ? "No rejected corrections"
                     : "No correction requests yet"}
             </h3>
-
             <p
               className="muted"
               style={{
@@ -1205,7 +1103,6 @@ export function AcademicReviews() {
                     ? "Rejected correction requests will appear here."
                     : "Requests created through academic record controls will appear here."}
             </p>
-
             {status !== "" && (
               <div style={{ marginTop: 17 }}>
                 <Button
@@ -1233,7 +1130,6 @@ export function AcademicReviews() {
                   <th>Action</th>
                 </tr>
               </thead>
-
               <tbody>
                 {query.data.results.map((row) => (
                   <tr key={String(row.id)}>
@@ -1242,15 +1138,12 @@ export function AcademicReviews() {
                         {readable(row.offering_label)}
                       </strong>
                     </td>
-
                     <td>
                       {humanize(row.kind)}
                     </td>
-
                     <td>
                       {readable(row.requester_label)}
                     </td>
-
                     <td
                       style={{
                         maxWidth: 320,
@@ -1259,14 +1152,12 @@ export function AcademicReviews() {
                     >
                       {readable(row.reason)}
                     </td>
-
                     <td>
                       <StatusBadge
                         status={row.status}
                         emergency={!!row.emergency}
                       />
                     </td>
-
                     <td>
                       <Button
                         variant="outline"
@@ -1283,7 +1174,6 @@ export function AcademicReviews() {
             </table>
           </div>
         )}
-
         {!query.isPending && !query.isError && (
           <div style={{ marginTop: 20 }}>
             <Pagination
@@ -1295,7 +1185,6 @@ export function AcademicReviews() {
           </div>
         )}
       </section>
-
       {selected && (
         <Decision
           key={String(selected.id)}

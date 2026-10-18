@@ -27,6 +27,8 @@ class PredictionResult(serializers.Serializer):
     )
     factors = PredictionFactor(many=True, required=False)
     created_at = serializers.DateTimeField(required=False)
+    model_info = serializers.JSONField(required=False)
+    observations = serializers.JSONField(required=False)
 
 
 class PredictionHistory(serializers.Serializer):
@@ -39,6 +41,8 @@ class PredictionHistory(serializers.Serializer):
     created_at = serializers.DateTimeField()
     features = serializers.DictField(child=serializers.FloatField(allow_null=True))
     warning = serializers.CharField()
+    model_info = serializers.JSONField(required=False)
+    observations = serializers.JSONField(required=False)
 
 
 class PredictionPage(serializers.Serializer):

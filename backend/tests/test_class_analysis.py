@@ -70,13 +70,13 @@ def test_analysis_role_tenant_revocation_and_archive(world, client_for):
     assert teacher.post(url+'advance/').status_code==404
     assert AnalysisItem.objects.filter(status='pending').count()==1
     a['offering'].archived=True; a['offering'].save()
-    assert client_for(a,'admin').post(url+'advance/').status_code==400
-    assert client_for(a,'admin').post('/api/v1/class-analysis/',{'offering':str(a['offering'].pk)}).status_code==400
+    assert client_for(a,'admin').post(url+'advance/').status_code==403
+    assert client_for(a,'admin').post('/api/v1/class-analysis/',{'offering':str(a['offering'].pk)}).status_code==403
 
 
 @pytest.mark.django_db
 def test_analysis_model_failure_does_not_discard_run(world, client_for):
-    a=world['a']; client=client_for(a,'head'); observations(a,a['student'])
+    a=world['a']; client=client_for(a,'teacher'); observations(a,a['student'])
     for failure,expected in [(RuntimeError('private path'), 'failed'), (None, 'model_unavailable')]:
         run=client.post('/api/v1/class-analysis/',{'offering':str(a['offering'].pk)}).data
         url=f'/api/v1/class-analysis/{run["id"]}/'

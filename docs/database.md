@@ -56,3 +56,12 @@ Continuation migrations add `Program(institute,unit,name)` uniqueness plus a con
 PostgreSQL 17 verification now includes four concurrent API race cases, a 2,000-student reporting benchmark and a custom-format dump/restore into an independent database. The restored fixture and 32 migration records were verified. This rehearsal excludes media and off-host recovery. See docs/reporting-benchmark.json and IMPLEMENTATION_PROGRESS.md for current evidence.
 
 Latest backend regression: PostgreSQL 17 **73 passed, no skips** after authentication, reporting and attendance changes. No model changes/migrations were required. The disposable database container was stopped after verification; the existing local SQLite application data was not replaced.
+
+
+## Current additive architecture migration — 15 October 2026
+
+`academics.0008_periods_and_progression` adds `Term.period_type`, `StudentPlacement.stage/term/end_reason` and `ProgressionDecision` (membership, unique previous placement, optional target placement, operation, reason, actor and JSON evidence). Existing UUIDs, foreign keys, memberships, grades, attendance and audit rows are preserved. Existing periods keep blank/unspecified type; no data is inferred or deleted. One current placement per membership remains database-enforced. Decisions expose no mutation endpoint.
+
+The migration was applied to the recovered live PostgreSQL database; all measured preexisting record counts stayed equal. Local evidence: `backend/test-results/architecture-migration.json` (ignored). The active application uses the recovered PostgreSQL database, not the historical SQLite demo. See current progress/testing results for later regressions; old counts and stopped-container statements above are historical.
+
+GPA policy stays in validated institute grading JSON and requires no separate schema migration. Results are computed from stored released marks and positive current course credits, while progression captures the reviewed evidence as JSON. Current-policy recalculation is disclosed; immutable official transcript storage is not implemented.

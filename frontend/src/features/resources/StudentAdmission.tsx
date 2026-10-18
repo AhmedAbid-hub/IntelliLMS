@@ -8,9 +8,13 @@ import { Pagination } from "../../components/ReportControls";
 import { Button } from "../../components/ui/button";
 import { PageHeader, Loading, ErrorState } from "../../components/shared";
 import { useTerminology } from "../../lib/terminology";
+import { useInstitution } from "../../lib/institution";
+import { StudentProgression } from "./StudentProgression";
+import { AcademicResults } from "../analytics/AcademicResults";
+import { AcademicDecisions } from "../analytics/AcademicDecisions";
 import { InvitationReview } from "./InvitationReview";
 
-type Placement = {
+export type Placement = {
   program: string;
   batch: string;
   year: string;
@@ -31,6 +35,8 @@ const empty: Placement = {
 };
 
 const placementPayload = (value: Placement) => ({
+  stage: Number(value.stage),
+  term: value.term || null,
   program: value.program,
   batch: value.batch || null,
   year: value.year,
@@ -58,6 +64,7 @@ function PlacementFields({
   onChange: (value: Placement) => void;
 }) {
   const terms = useTerminology();
+  const institution = useInstitution();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
 
@@ -121,14 +128,14 @@ function PlacementFields({
           required
         />
 
-        <RelationSelect
+        {institution.kind !== "school" && <RelationSelect
           label="Admission batch (optional)"
           source={`batches?active=true${
             value.program ? `&program=${value.program}` : ""
           }`}
           value={value.batch}
           onChange={(v) => field("batch", String(v))}
-        />
+        />}
 
         <RelationSelect
           label={terms.field(
@@ -144,6 +151,38 @@ function PlacementFields({
           onChange={(v) => field("section", String(v))}
         />
       </div>
+
+        <div
+          className="admission-fields"
+          style={fieldGridStyle}
+        >
+          <RelationSelect
+            label={terms.field(
+              "term",
+              "Academic term (optional)"
+            )}
+            source={`terms${
+              value.year ? `?year=${value.year}` : ""
+            }`}
+            value={value.term}
+            onChange={(v) =>
+              field("term", String(v))
+            }
+          />
+
+          {institution.kind !== "school" && <label>
+            {institution.structure === "annual" ? "Study year number" : "Semester number"}
+            <input
+              type="number"
+              min="1"
+              max="40"
+              value={value.stage}
+              onChange={(e) =>
+                field("stage", e.target.value)
+              }
+            />
+          </label>}
+        </div>
 
       <details
         className="admission-suggestions"
@@ -167,44 +206,13 @@ function PlacementFields({
         </summary>
 
         <p className="muted">
-          Suggestions follow the program curriculum,
-          semester/year number, calendar and section.
+          Suggestions follow the curriculum, selected academic stage,
+          calendar and section.
           Select up to 100 offerings, or leave empty and
           enroll later. Changing placement clears these
           selections.
         </p>
 
-        <div
-          className="admission-fields"
-          style={fieldGridStyle}
-        >
-          <RelationSelect
-            label={terms.field(
-              "term",
-              "Academic term (optional)"
-            )}
-            source={`terms${
-              value.year ? `?year=${value.year}` : ""
-            }`}
-            value={value.term}
-            onChange={(v) =>
-              field("term", String(v))
-            }
-          />
-
-          <label>
-            Semester / year number
-            <input
-              type="number"
-              min="1"
-              max="40"
-              value={value.stage}
-              onChange={(e) =>
-                field("stage", e.target.value)
-              }
-            />
-          </label>
-        </div>
 
         <label>
           Find suggested courses
@@ -634,6 +642,8 @@ function PlacementEditor({
 }: {
   member: RecordData;
 }) {
+  const terms = useTerminology();
+  const institution = useInstitution();
   const [placement, setPlacement] = useState(empty);
   const [reason, setReason] = useState("");
   const [withdraw, setWithdraw] = useState<string[]>([]);
@@ -645,6 +655,8 @@ function PlacementEditor({
   const [historyPage, setHistoryPage] = useState(1);
 
   const client = useQueryClient();
+
+  const firstPlacements = useQuery({queryKey: ["placements", member.id, 1], queryFn: () => api<Page<RecordData>>(`memberships/${member.id}/placements/?page=1`)});
 
   const history = useQuery({
     queryKey: [
@@ -670,7 +682,7 @@ function PlacementEditor({
       ),
   });
 
-  const currentPlacement = history.data?.results.find(
+  const currentPlacement = firstPlacements.data?.results.find(
     (row) => !row.ended_at
   );
 
@@ -745,7 +757,7 @@ function PlacementEditor({
           </div>
 
           <div>
-            <small className="muted">Program</small>
+            <small className="muted">{terms.label("program")}</small>
             <p style={{ marginTop: 4 }}>
               <strong>
                 {String(
@@ -756,7 +768,7 @@ function PlacementEditor({
             </p>
           </div>
 
-          <div>
+          {institution.kind !== "school" && <div>
             <small className="muted">Batch</small>
             <p style={{ marginTop: 4 }}>
               <strong>
@@ -765,10 +777,10 @@ function PlacementEditor({
                 )}
               </strong>
             </p>
-          </div>
+          </div>}
 
           <div>
-            <small className="muted">Section</small>
+            <small className="muted">{terms.label("section")}</small>
             <p style={{ marginTop: 4 }}>
               <strong>
                 {String(
@@ -780,6 +792,9 @@ function PlacementEditor({
         </div>
       </section>
 
+      <StudentProgression member={member} current={currentPlacement} renderPlacement={(value, onChange) => <PlacementFields value={value} onChange={onChange} />} />
+      <AcademicResults member={String(member.id)} />
+      <AcademicDecisions member={String(member.id)} />
       {!member.active ? (
         <section className="panel padded">
           <h2>Placement changes unavailable</h2>
@@ -1068,9 +1083,11 @@ function PlacementEditor({
                 <table>
                   <thead>
                     <tr>
-                      <th>Program</th>
-                      <th>Batch</th>
-                      <th>Section</th>
+                      <th>{terms.label("program")}</th>
+                      {institution.kind !== "school" && <th>Batch</th>}
+                      <th>{terms.label("section")}</th>
+                      <th>{terms.label("year")} / {terms.label("term")}</th>
+                      {institution.kind !== "school" && <th>{institution.structure === "annual" ? "Study year" : "Semester number"}</th>}
                       <th>From</th>
                       <th>Status</th>
                       <th>Reason</th>
@@ -1087,17 +1104,15 @@ function PlacementEditor({
                             )}
                           </td>
 
-                          <td>
-                            {String(
-                              row.batch_label || "—"
-                            )}
-                          </td>
+                          {institution.kind !== "school" && <td>{String(row.batch_label || "—")}</td>}
 
                           <td>
                             {String(
                               row.section_label || "—"
                             )}
                           </td>
+                          <td>{String(row.year_label || "Unknown legacy year")} / {String(row.term_label || "No period recorded")}</td>
+                          {institution.kind !== "school" && <td>{String(row.stage || "Not recorded")}</td>}
 
                           <td>
                             {new Date(

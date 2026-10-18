@@ -8,6 +8,7 @@ from apps.academics.serializers import serializer_for
 from apps.insights.models import Audit
 from .models import Institute, Membership
 from .scope import Scope
+from .institution import academic_config
 
 
 class TransitionInput(serializers.Serializer):
@@ -63,7 +64,7 @@ def check_last_admin(member, next_role, active):
 
 
 def reassign(request, member, replacement_id):
-    courses = list(Offering.objects.filter(institute=member.institute, teachers=member.user, archived=False).select_related("course", "term"))
+    courses = list(Offering.objects.filter(institute=member.institute, teachers=member.user, archived=False).exclude(term__status="closed").select_related("course", "term"))
     if not courses:
         return []
     if not replacement_id:
@@ -71,10 +72,14 @@ def reassign(request, member, replacement_id):
     replacement = Membership.objects.filter(pk=replacement_id, institute=member.institute, active=True, removed_at__isnull=True, user__is_active=True).select_related("user").first()
     if not replacement or replacement.pk == member.pk or not (replacement.role == "teacher" or (replacement.role == "head" and replacement.can_teach)):
         raise ValidationError({"replacement": "Select another active teacher or teaching head in this institute."})
+    if member.institute.kind == "school" and replacement.role != "teacher":
+        raise ValidationError({"replacement": "School assignments require an active teacher."})
     # Validate every course before writing any: includes existing timetable conflicts.
     for course in courses:
-        if replacement.unit_id != course.course.unit_id:
-            raise ValidationError({"replacement": "Replacement must belong to each affected course's department."})
+        if academic_config(member.institute)["departments"] and course.course.unit_id:
+            appointments = replacement.appointments.filter(unit_id=course.course.unit_id)
+            if appointments.filter(active=False).exists() or (replacement.unit_id != course.course.unit_id and not appointments.filter(active=True).exists()):
+                raise ValidationError({"replacement": "Replacement must have a current appointment or authorized primary department for each affected course."})
         teachers = list(course.teachers.exclude(pk=member.user_id).values_list("pk", flat=True))
         teachers.append(replacement.user_id)
         serializer = serializer_for(Offering)(course, data={"teachers": [str(x) for x in set(teachers)]}, partial=True, context={"request": request, "lifecycle_reassignment": True})
@@ -89,7 +94,12 @@ def transition(request, member_id, values):
     scope.require("admin")
     Institute.objects.select_for_update().get(pk=scope.institute.pk)
     member = Membership.objects.select_for_update().select_related("user").get(pk=member_id, institute=scope.institute)
+    from .institution import require_departments, validate_structure
     role = values.get("role", member.role)
+    if values["operation"] in ("change_role", "reactivate"):
+        if role == "head":
+            require_departments(scope.institute)
+        validate_structure(scope.institute, "Membership", values, member)
     authorize(scope, member, role)
     operation = values["operation"]
     if operation != "change_role" and {"role", "unit", "can_teach"} & values.keys():
@@ -131,6 +141,8 @@ def replace_head(request, member_id, values):
     scope = Scope(request)
     scope.require("admin")
     Institute.objects.select_for_update().get(pk=scope.institute.pk)
+    from .institution import require_departments
+    require_departments(scope.institute)
     old = Membership.objects.select_for_update().select_related("user").get(pk=member_id, institute=scope.institute)
     authorize(scope, old)
     if old.role != "head" or not old.active:

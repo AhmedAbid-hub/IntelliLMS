@@ -34,14 +34,14 @@ test("teacher searches and saves attendance; student sees course and meeting con
   await row.getByRole("button", { name: "Mark attendance" }).click();
   const dialog = page.getByRole("dialog");
   await dialog
-    .getByRole("searchbox", { name: "Find student" })
+    .getByRole("searchbox", { name: "Search students" })
     .fill("Zara");
   await expect(dialog.getByRole("combobox")).toHaveCount(1);
   await dialog.getByRole("combobox").selectOption("excused");
   await expect(dialog.getByRole("searchbox")).toBeDisabled();
   await dialog.getByRole("button", { name: "Save attendance" }).click();
   await expect(dialog.getByRole("status")).toHaveText(
-    "1 attendance records saved on this page.",
+    "1 attendance record saved successfully.",
   );
   await dialog.getByRole("button", { name: "Close dialog" }).click();
   await row.getByRole("button", { name: "Mark attendance" }).click();

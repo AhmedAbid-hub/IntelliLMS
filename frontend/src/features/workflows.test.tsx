@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Routes, Route, Link } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -218,7 +218,7 @@ describe("academic workflows", () => {
       />,
     );
     expect(screen.getByText("Explain your conclusion.")).toBeInTheDocument();
-    expect(screen.getByText("7.25 / 10 marks")).toBeInTheDocument();
+    expect(screen.getByText("Recorded marks").parentElement).toHaveTextContent("7.25 / 10");
     expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
   });
   it("accepts fractional manual marks in the edit form", async () => {
@@ -367,7 +367,7 @@ describe("academic workflows", () => {
       ),
     );
     await userEvent.selectOptions(
-      screen.getByLabelText("Course status"),
+      screen.getByLabelText("Workload course status"),
       "false",
     );
     await waitFor(() =>
@@ -664,6 +664,12 @@ it('requires an explicit admin assignment override and retains the existing inst
 });
 
 import { ClassAnalysis } from './analytics/ClassAnalysis';
+it('keeps class analysis generation disabled in oversight mode', () => {
+  mount(<ClassAnalysis offering="course" canGenerate={false} />);
+  expect(screen.getByRole('button', { name: 'Analyze class' })).toBeDisabled();
+  expect(screen.getByText(/Read-only oversight/)).toBeVisible();
+  expect(post).not.toHaveBeenCalled();
+});
 it('resumes class analysis after a request failure and keeps actual values separate from estimates', async () => {
   const run = { id: 'run1', offering: 'course', status: 'active', total: 12, processed: 0, counts: {}, created_at: '2026-10-12T00:00:00Z', finished_at: null, warning: 'Synthetic demonstration only' };
   let advances = 0;
@@ -752,14 +758,14 @@ it("shows persisted setup progress and direct links without claiming operations 
 
 it("preserves invitation review after resend failure and explains transport status",async()=>{
  const {InvitationReview}=await import("./resources/InvitationReview");
- vi.mocked(post).mockRejectedValueOnce(new Error("Please retry")).mockResolvedValueOnce({});
+ vi.mocked(post).mockRejectedValueOnce(new Error("Please retry")).mockResolvedValueOnce({state:"pending",email_status:"accepted",issued_at:null,expires_at:null,accepted_at:null});
  mount(<InvitationReview row={{id:"member",username:"invited",active:true,invitation:{state:"pending",email_status:"failed",issued_at:null,expires_at:null,accepted_at:null}}}/>);
  await userEvent.click(screen.getByRole("button",{name:"Invitation"}));
  expect(screen.getByText(/does not confirm delivery/)).toBeInTheDocument();
  await userEvent.click(screen.getByRole("button",{name:"Resend invitation"}));
  expect(await screen.findByText("Please retry")).toBeInTheDocument();
  await userEvent.click(screen.getByRole("button",{name:"Resend invitation"}));
- expect(await screen.findByRole("status")).toHaveTextContent("Invitation request processed");
+ expect(await screen.findByRole("status")).toHaveTextContent("Submitted to email provider");
  expect(post).toHaveBeenLastCalledWith("memberships/member/resend-invitation/");
 });
 
@@ -770,8 +776,8 @@ it("keeps a correction proposal and reason after a rejected save",async()=>{
  vi.mocked(api).mockResolvedValue({kind:"manual",target:"grade",finalized:true,current:{marks:"40.00",feedback:"Original",released:true},can_finalize:false,can_review:false});
  vi.mocked(post).mockRejectedValueOnce(new Error("A correction is already pending"));
  mount(<AcademicControl resource="manual-grades" row={{id:"grade"}}/>);
- await userEvent.click(screen.getByRole("button",{name:"Academic control"}));
- const marks=await screen.findByLabelText("Proposed marks");await userEvent.clear(marks);await userEvent.type(marks,"55.50");await userEvent.type(screen.getByLabelText("Reason for this academic action"),"Verified marking sheet");await userEvent.click(screen.getByRole("button",{name:"Request correction"}));
+ await userEvent.click(screen.getByRole("button",{name:"Request correction"}));
+ const marks=await screen.findByLabelText("Proposed marks");await userEvent.clear(marks);await userEvent.type(marks,"55.50");await userEvent.type(screen.getByLabelText("Reason for this academic action"),"Verified marking sheet");await userEvent.click(within(screen.getByRole("dialog")).getByRole("button",{name:"Request correction"}));
  expect(await screen.findByText("A correction is already pending")).toBeInTheDocument();expect(marks).toHaveValue(55.5);expect(screen.getByLabelText("Reason for this academic action")).toHaveValue("Verified marking sheet");expect(screen.queryByRole("button",{name:"Finalize record"})).not.toBeInTheDocument();
 });
 

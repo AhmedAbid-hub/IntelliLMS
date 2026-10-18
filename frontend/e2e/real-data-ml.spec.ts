@@ -1,0 +1,57 @@
+import { test, expect } from "@playwright/test";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync } from "node:fs";
+import { resolve } from "node:path";
+
+test("OULAD model works through teacher Analyze Class and individual history using recorded marks", async ({ page }) => {
+  const localPython = resolve("..", ".venv", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
+  execFileSync(process.env.E2E_PYTHON || (existsSync(localPython) ? localPython : "python"), ["../scripts/e2e-public-model-fixture.py"], { env: process.env });
+  await page.goto("/login");
+  await page.getByLabel("Username").fill("university.teacher");
+  await page.getByLabel("Password", { exact: true }).fill("LearnTogether42!");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+  const model = await (await page.request.get("/api/v1/model-status/")).json();
+  expect(model.status).toBe("ready");
+  expect(model.mode).toBe("external_public");
+  expect(model.selected_model).toBe("gradient_boosting");
+  const courses = await (await page.request.get("/api/v1/offerings/")).json();
+  const course = courses.results.find((c: { title: string }) => c.title === "Introduction to Computing · A");
+  await page.goto(`/course/${course.id}`);
+  await page.getByRole("tab", { name: "AI insights", exact: true }).click();
+  await expect(page.getByText("Next submitted assignment score below 40%", { exact: true })).toBeVisible();
+  await expect(page.getByText(/evaluated on external public OULAD data/)).toBeVisible();
+  const started = page.waitForResponse(r => r.url().endsWith("/api/v1/class-analysis/") && r.request().method() === "POST");
+  const region = page.getByRole("region", { name: "Class analysis" });
+  await region.getByRole("button", { name: "Analyze class", exact: true }).click();
+  const run = await (await started).json();
+  await expect(region.getByRole("status")).toContainText("Completed", { timeout: 60000 });
+  const items = await (await page.request.get(`/api/v1/class-analysis/${run.id}/items/`)).json();
+  const ready = items.results.filter((item: { status: string }) => item.status === "ready");
+  expect(ready.length).toBeGreaterThan(0);
+  for (const item of ready) {
+    expect(item.result.version).toBe(model.version);
+    expect(item.result.model_info.target).toBe("next_submitted_assignment_below_40");
+    expect(Object.keys(item.result.features).sort()).toEqual(["latest_assignment_pct", "previous_assignment_pct"]);
+    expect(item.result.features.latest_assignment_pct).toBe(item.result.observations.assignments[1].percentage);
+  }
+  await region.getByRole("button", { name: "Prediction basis", exact: true }).first().click();
+  await expect(page.getByRole("dialog").getByText(/40% is the dataset outcome threshold/)).toBeVisible();
+  const evidenceDir = resolve("..", "backend", "test-results", "real-data-ml");
+  mkdirSync(evidenceDir, { recursive: true });
+  await page.screenshot({ path: resolve(evidenceDir, "teacher-prediction-basis.png") });
+  await page.getByRole("button", { name: "Close dialog" }).click();
+  await page.screenshot({ path: resolve(evidenceDir, "teacher-analysis.png"), fullPage: true });
+  const learner = ready[0].student;
+  await page.getByRole("combobox", { name: "Enrolled learner", exact: true }).selectOption(`${learner}:${course.id}`);
+  const response = page.waitForResponse(r => r.url().endsWith("/api/v1/predictions/") && r.request().method() === "POST");
+  await page.getByRole("button", { name: "Generate estimate", exact: true }).click();
+  const prediction = await (await response).json();
+  expect(prediction.status).toBe("ready");
+  expect(prediction.probability).toBe(ready[0].result.probability);
+  const history = await (await page.request.get(`/api/v1/predictions/?offering=${course.id}`)).json();
+  expect(history.results.some((p: { version: string }) => p.version === model.version)).toBe(true);
+  await page.reload();
+  await page.getByRole("tab", { name: "AI insights", exact: true }).click();
+  await expect(page.getByText(model.version, { exact: false }).first()).toBeVisible();
+});

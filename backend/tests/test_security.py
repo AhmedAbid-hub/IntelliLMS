@@ -145,10 +145,11 @@ def test_quiz_grade_and_limit(world, client_for):
         answer="4",
         marks=5,
     )
-    assert "answer" not in client.get("/api/v1/questions/").data["results"][0]
+    assert client.get("/api/v1/questions/").data["results"] == []
     result = client.post(f"/api/v1/quizzes/{quiz.pk}/start/")
     assert result.status_code == 201
     attempt = result.data["id"]
+    assert "answer" not in client.get("/api/v1/questions/").data["results"][0]
     result = client.post(
         f"/api/v1/attempts/{attempt}/submit/",
         {"answers": {str(question.pk): "4"}},

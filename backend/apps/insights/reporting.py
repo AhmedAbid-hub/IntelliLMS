@@ -22,11 +22,11 @@ from .workload import workload_queryset
 from apps.learning.models import Submission, Attendance
 from .models import Activity, Prediction
 from .gradebook import iter_gradebook
-from .filters import enrollment_queryset
+from .filters import AcademicFilters, enrollment_queryset, offering_queryset, restrict_report_pairs
 
 
-class CourseReportQuery(serializers.Serializer):
-    offering = serializers.UUIDField(required=False)
+class CourseReportQuery(AcademicFilters):
+    pass
 
 
 def course_values(request):
@@ -55,9 +55,16 @@ def risk_summary(request):
     scope = Scope(request)
     scope.require("admin", "head", "teacher")
     qs = latest_predictions(scope)
+    from ml.inference import status
+    model = status()
+    basis = "Latest stored estimate for each learner and course; historical versions may have different targets and are not directly comparable."
+    if model.get("mode") == "external_public" and model.get("status") == "ready":
+        qs = qs.filter(version=model["version"])
+        basis = f"Latest estimates using {model['version']}: {model['target_label']}. Older/different-target estimates remain in history and are excluded from these counts."
     values = course_values(request)
-    if "offering" in values:
-        qs = qs.filter(offering_id=values["offering"])
+    qs = qs.filter(offering__in=offering_queryset(scope, values))
+    if "stage" in values:
+        qs = restrict_report_pairs(qs, enrollment_queryset(scope, values))
     distribution = {x: 0 for x in ["low", "moderate", "high"]}
     for row in qs.values("category").annotate(total=Count("id")):
         distribution[row["category"]] = row["total"]
@@ -65,7 +72,7 @@ def risk_summary(request):
         {
             "distribution": distribution,
             "learner_course_pairs": qs.count(),
-            "basis": "Latest stored estimate for each learner and course; estimates may use different model versions.",
+            "basis": basis,
             "warning": "EXPERIMENTAL ESTIMATES — NOT VALIDATED FOR ACADEMIC DECISIONS",
         }
     )
@@ -75,10 +82,8 @@ def risk_summary(request):
 @api_view(["GET"])
 def trends(request):
     scope = Scope(request)
-    offerings = scope.offerings()
     values = course_values(request)
-    if "offering" in values:
-        offerings = offerings.filter(pk=values["offering"])
+    offerings = offering_queryset(scope, values)
     enrollments = enrollment_queryset(scope, values)
     start = timezone.now() - timedelta(days=30)
     activity = Activity.objects.filter(
@@ -96,6 +101,10 @@ def trends(request):
         marks__isnull=False,
         submitted_at__gte=start,
     )
+    if "stage" in values:
+        activity = restrict_report_pairs(activity, enrollments, student="user_id")
+        attendance = restrict_report_pairs(attendance, enrollments, offering="session__offering_id")
+        submissions = restrict_report_pairs(submissions, enrollments, offering="assignment__offering_id")
     if scope.role == "student":
         activity = activity.filter(user=request.user)
         attendance = attendance.filter(student=request.user)

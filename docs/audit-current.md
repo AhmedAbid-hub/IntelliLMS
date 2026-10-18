@@ -1,6 +1,6 @@
 # Current implementation audit
 
-**Upgrade in progress:** the original-scope audit below is historical. The active requirements are `UPGRADE_REQUEST.md`; current implemented/verified milestones and unchecked upgrade work are tracked in `IMPLEMENTATION_PROGRESS.md`. Do not infer upgrade completion from original-scope T labels.
+**Current authority:** [ARCHITECTURE_REQUEST.md](ARCHITECTURE_REQUEST.md). The table below is the historical original-scope audit. Use [completion-acceptance.md](completion-acceptance.md) and the top of [IMPLEMENTATION_PROGRESS.md](../IMPLEMENTATION_PROGRESS.md) for the latest architecture, integrations, exact tests and remaining assurance. Historical T/P labels do not certify later changes.
 
 Audit started 10 October 2026 against the entire original `REQUEST.md`, actual source, 30 existing backend tests, 10 frontend tests and six previously verified Chromium workflows. This supersedes broad “Complete and tested” labels in the previous overview where only part of a module was exercised. Those tests are baseline evidence, not new execution in this session.
 

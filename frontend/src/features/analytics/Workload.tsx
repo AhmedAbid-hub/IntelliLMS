@@ -18,12 +18,13 @@ type WorkloadRow = {
   learners: number;
 };
 
-export function Workload() {
+export function Workload({ filters = {} }: { filters?: Record<string, string> } = {}) {
   const [search, setSearch] = useState("");
-  const [archived, setArchived] = useState("");
+  const [archived, setArchived] = useState(filters.archived || "");
   const [page, setPage] = useState(1);
 
   const params = new URLSearchParams({
+    ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== "")),
     search,
     page: String(page),
   });
@@ -76,11 +77,12 @@ export function Workload() {
               size={15}
               aria-hidden="true"
             />
-            Course status
+            Workload course status
           </span>
 
           <select
             value={archived}
+            disabled={Boolean(filters.archived)}
             onChange={(event) => {
               setArchived(event.target.value);
               setPage(1);

@@ -10,17 +10,18 @@ test("platform configuration saves and renders on public login", async ({
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
   await page.goto("/platform-settings");
   await page
-    .getByLabel("Platform name", { exact: true })
+    .getByRole("textbox", { name: /^Platform name/ })
     .fill("IntelliLMS Network");
   await page.getByLabel("Public support email").fill("support@example.test");
   await page
-    .getByLabel("Public login notice")
+    .getByRole("textbox", { name: /^Notice message/ })
     .fill("Contact your institute for account access.");
-  await page.getByRole("button", { name: "Save platform settings" }).click();
+  await page.getByRole("button", { name: "Save platform settings", exact: true }).click();
   await expect(
-    page.getByRole("status").filter({ hasText: /settings saved\./i }),
-  ).toHaveText("Platform settings saved.");
+    page.getByRole("status").filter({ hasText: /settings saved successfully/i }),
+  ).toHaveText("Platform settings saved successfully.");
   await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page.getByLabel("Username")).toBeVisible();
   await expect(
     page.getByText("Contact your institute for account access."),
   ).toBeVisible();

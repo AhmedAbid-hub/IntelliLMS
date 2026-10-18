@@ -131,7 +131,6 @@ export const resources: Record<string, Resource> = {
           "university",
           "college",
           "school",
-          "other",
         ],
         required: true,
       },
@@ -487,6 +486,12 @@ export const resources: Record<string, Resource> = {
         source: "memberships?role=teacher",
       },
       {
+        key: "head_correction_review",
+        label: "Delegate grade and attendance correction review to this course's Department Head",
+        type: "checkbox",
+        default: false,
+      },
+      {
         key: "assignment_reason",
         label: "Administrative assignment override reason",
         type: "textarea",
@@ -511,12 +516,6 @@ export const resources: Record<string, Resource> = {
         label: "Manual assessment weight (%)",
         type: "number",
         default: 0,
-      },
-      {
-        key: "head_correction_review",
-        label:
-          "Delegate correction review to this course’s Department Head",
-        type: "checkbox",
       },
       {
         key: "archived",
@@ -610,7 +609,7 @@ export const resources: Record<string, Resource> = {
   enrollments: {
     title: "Enrollments",
     description:
-      "Connect active students with their course offerings.",
+      "Review enrollment history. Manage student enrollment and withdrawals from each course.",
     fields: [
       offering,
       {
@@ -632,7 +631,7 @@ export const resources: Record<string, Resource> = {
       "offering_label",
       "active",
     ],
-    write: academic,
+    write: [],
   },
 
   modules: {
@@ -933,7 +932,7 @@ export const resources: Record<string, Resource> = {
       "max_marks",
       "released",
     ],
-    write: staff,
+    write: ["head", "teacher"],
   },
 
   "question-bank": {

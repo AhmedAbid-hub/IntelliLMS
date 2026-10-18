@@ -69,9 +69,8 @@ def test_school_setup_no_mandatory_department_or_credits(world, client_for):
     status=client.get("/api/v1/institute-setup/")
     assert status.status_code == 200
     steps={step["key"]:step for step in status.data["steps"]}
-    assert steps["units"]["optional"] and steps["appointments"]["optional"]
+    assert not {"units", "heads", "appointments", "batches"} & steps.keys()
     assert steps["curriculum"]["complete"]
-    assert not steps["batches"]["complete"]
     assert not status.data["ready"]
     assert client.patch(f'/api/v1/courses/{subject.data["id"]}/',{"active":False},format="json").status_code == 200
     assert client.post("/api/v1/offerings/",{"course":subject.data["id"],"term":str(a["term"].pk),"title":"Archived subject"},format="json").status_code == 400

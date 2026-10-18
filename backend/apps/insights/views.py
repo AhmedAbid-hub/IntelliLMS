@@ -101,7 +101,9 @@ def require_prediction_instructor(scope, user, offering):
     Department heads may generate predictions only when
     they personally teach the offering.
     """
-    scope.require("head", "teacher")
+    # A Head must enter the capability-checked teaching workspace; department
+    # oversight (including a stale teacher link after revocation) is read-only.
+    scope.require("teacher")
 
     scope.check_offering(offering, write=True)
 
@@ -118,6 +120,18 @@ def analytics(request):
     scope = Scope(request)
 
     offerings = scope.offerings()
+    structure_counts = {}
+    if scope.role == "admin":
+        from apps.accounts.institution import academic_config
+        from apps.academics.models import Program, Section, Course, Term, Unit, AdmissionBatch
+        config = academic_config(scope.institute)
+        for key, model in [("program", Program), ("section", Section), ("course", Course)]:
+            structure_counts[key] = model.objects.filter(institute=scope.institute, active=True).count()
+        structure_counts["term"] = Term.objects.filter(institute=scope.institute, status="active").count()
+        if config["departments"]:
+            structure_counts["unit"] = Unit.objects.filter(institute=scope.institute).count()
+        if config["batches"]:
+            structure_counts["batch"] = AdmissionBatch.objects.filter(institute=scope.institute, active=True).count()
 
     enrollments = Enrollment.objects.filter(
         offering__in=offerings,
@@ -203,6 +217,7 @@ def analytics(request):
             ),
             "institute": scope.institute.name,
             "role": scope.role,
+            "structure_counts": structure_counts,
         }
     )
 
@@ -219,6 +234,9 @@ def platform(request):
             "active_institutes": Institute.objects.filter(
                 active=True,
             ).count(),
+            "institute_administrators": Membership.objects.filter(
+                role="admin", active=True, user__is_active=True, institute__active=True,
+            ).values("user_id").distinct().count(),
             "users": User.objects.count(),
             "memberships": Membership.objects.filter(
                 active=True,
@@ -390,6 +408,11 @@ def predictions(request):
         values = query_values(request)
 
         filters = [
+            ("course", "offering__course_id"),
+            ("program", "offering__section__program_id"),
+            ("year", "offering__term__year_id"),
+            ("section", "offering__section_id"),
+            ("batch", "offering__section__batch_id"),
             ("offering", "offering_id"),
             ("student", "student_id"),
             ("term", "offering__term_id"),
@@ -404,6 +427,10 @@ def predictions(request):
                         field: values[parameter],
                     }
                 )
+
+        if "stage" in values:
+            from .filters import restrict_report_pairs
+            queryset = restrict_report_pairs(queryset, enrollment_queryset(scope, values))
 
         search = values.get("search")
 
@@ -463,6 +490,7 @@ def predictions(request):
                     "created_at": prediction.created_at,
                     "features": prediction.features,
                     "warning": prediction.warning,
+                    **prediction.context,
                 }
             )
 
@@ -520,23 +548,22 @@ def predictions(request):
         enrollment.offering,
     )
 
-    from ml.inference import infer
-
-    features, counts = student_features(
-        enrollment.offering,
-        enrollment.student,
-    )
-
-    result = infer(
-        features,
-        counts,
-    )
+    from ml.inference import infer, status
+    from .prediction_inputs import prediction_inputs
+    from apps.accounts.models import Membership
+    if not Membership.objects.filter(institute=scope.institute, user=enrollment.student,
+            active=True, role="student", user__is_active=True).exists():
+        raise ValidationError("Select an actively enrolled student with an active student membership.")
+    metadata = status()
+    features, counts, evidence = prediction_inputs(enrollment.offering, enrollment.student, metadata)
+    result = infer(features, counts, runtime={"metadata": metadata})
 
     if result["status"] == "ready":
         prediction = Prediction.objects.create(
             institute=scope.institute,
             offering=enrollment.offering,
             student=enrollment.student,
+            context={"model_info": result.get("model_info", {}), "observations": evidence},
             **{
                 key: result[key]
                 for key in [
@@ -552,6 +579,7 @@ def predictions(request):
         result["created_at"] = (
             prediction.created_at
         )
+        result["observations"] = evidence
 
     return Response(result)
 

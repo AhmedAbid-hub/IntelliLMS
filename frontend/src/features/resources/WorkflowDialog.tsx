@@ -1,5 +1,4 @@
-import { AttendanceRoster } from "./AttendanceRoster";
-import { notifySaved } from "../../components/ToastProvider";
+
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -10,20 +9,30 @@ import {
   type RecordData,
 } from "../../lib/api";
 
+import { AttendanceRoster } from "./AttendanceRoster";
+import { AcademicControl } from "./AcademicControl";
+
 import { Button } from "../../components/ui/button";
 import { Dialog } from "../../components/ui/dialog";
-import { ErrorState, Loading } from "../../components/shared";
+import {
+  ErrorState,
+  Loading,
+} from "../../components/shared";
+
+import { notifySaved } from "../../components/ToastProvider";
 import { useAuth } from "../auth/Auth";
+
+type WorkflowDialogProps = {
+  resource: string;
+  row: RecordData;
+  onClose: () => void;
+};
 
 export function WorkflowDialog({
   resource,
   row,
   onClose,
-}: {
-  resource: string;
-  row: RecordData;
-  onClose: () => void;
-}) {
+}: WorkflowDialogProps) {
   const { role } = useAuth();
   const client = useQueryClient();
 
@@ -47,103 +56,251 @@ export function WorkflowDialog({
 
   const [file, setFile] = useState<File>();
 
-  const [manual, setManual] = useState<Record<string, string>>(
-    () =>
-      Object.fromEntries(
-        Object.entries(
-          (row.manual_marks ?? {}) as Record<string, unknown>,
-        ).map(([key, value]) => [key, String(value)]),
-      ),
+  const [manual, setManual] = useState<
+    Record<string, string>
+  >(() =>
+    Object.fromEntries(
+      Object.entries(
+        (row.manual_marks ?? {}) as Record<string, unknown>,
+      ).map(([key, value]) => [key, String(value)]),
+    ),
   );
 
-  /*
-   * Assignment submission permissions:
-   *
-   * Student:
-   *   Can view their own released feedback.
-   *
-   * Institute Admin:
-   *   Can inspect submissions and grades but cannot grade.
-   *
-   * Department Head:
-   *   Read-only here until course instructor assignment
-   *   can be verified in the frontend.
-   *
-   * Teacher:
-   *   Can use the grading form.
-   *
-   * The backend independently enforces assigned-instructor
-   * permissions for grading.
-   */
+  const isTeacher = role === "teacher";
+  const isStudent = role === "student";
+
+  const isSubmission = resource === "submissions";
+  const isReleasedSubmission =
+    isSubmission && row.released === true;
+
   const canGradeSubmission =
-    resource === "submissions" && role === "teacher";
+    isSubmission && isTeacher;
 
   const isSubmissionOversight =
-    resource === "submissions" &&
-    (role === "admin" ||
-      role === "head" ||
-      role === "superadmin");
+    isSubmission &&
+    ["admin", "head", "superadmin"].includes(role);
+
+  const canRequestCorrection =
+    !isStudent &&
+    ["submissions", "attempts", "manual-grades"].includes(
+      resource,
+    );
+
+  const hasExistingGrade =
+    row.marks !== null &&
+    row.marks !== undefined &&
+    row.marks !== "";
 
   const questions = useQuery({
     queryKey: ["attempt-questions", row.quiz],
     queryFn: () =>
       allPages<RecordData>(
-        `questions/?quiz=${row.quiz}`,
+        `questions/?quiz=${encodeURIComponent(String(row.quiz))}`,
       ),
-    enabled: resource === "attempts",
+    enabled:
+      resource === "attempts" &&
+      row.quiz !== null &&
+      row.quiz !== undefined,
   });
 
   async function execute(
     action: () => Promise<unknown>,
+    successMessage = "Work saved successfully.",
   ) {
+    if (busy) return;
+
     setBusy(true);
     setError(undefined);
 
     try {
       await action();
       await client.invalidateQueries();
-
       setDone(true);
-      notifySaved("Work saved successfully.");
-    } catch (e) {
-      setError(e);
+      notifySaved(successMessage);
+    } catch (err) {
+      setError(err);
     } finally {
       setBusy(false);
     }
   }
 
+  function formatDate(value: unknown) {
+    if (!value) return "Not specified";
+
+    const date = new Date(String(value));
+
+    return Number.isNaN(date.getTime())
+      ? display(value)
+      : date.toLocaleString();
+  }
+
+  const title = String(
+    row.title ||
+      row.student_label ||
+      row.offering_label ||
+      "Review record",
+  );
+
   return (
     <Dialog
       open
-      onOpenChange={onClose}
-      title={String(
-        row.title ||
-          row.student_label ||
-          "Review record",
-      )}
+      onOpenChange={(next) => {
+        if (!next && !busy) onClose();
+      }}
+      title={title}
     >
+      <style>{`
+        .workflow-content {
+          display: grid;
+          gap: 18px;
+          min-width: 0;
+        }
+
+        .workflow-section {
+          display: grid;
+          gap: 14px;
+          min-width: 0;
+        }
+
+        .workflow-field {
+          display: grid;
+          gap: 7px;
+          min-width: 0;
+          font-size: 13px;
+          font-weight: 600;
+        }
+
+        .workflow-field input,
+        .workflow-field textarea {
+          box-sizing: border-box;
+          width: 100%;
+          min-width: 0;
+        }
+
+        .workflow-field textarea {
+          min-height: 110px;
+          resize: vertical;
+        }
+
+        .workflow-actions {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          flex-wrap: wrap;
+          gap: 10px;
+          padding-top: 14px;
+          border-top: 1px solid var(--border, #dce8df);
+        }
+
+        .workflow-record-summary {
+          display: grid;
+          grid-template-columns:
+            repeat(auto-fit, minmax(130px, 1fr));
+          gap: 12px;
+          padding: 15px;
+          border: 1px solid #dce8df;
+          border-radius: 12px;
+          background: #f8faf8;
+        }
+
+        .workflow-summary-item {
+          display: grid;
+          gap: 5px;
+          min-width: 0;
+        }
+
+        .workflow-summary-label {
+          font-size: 12px;
+          color: #6b8275;
+        }
+
+        .workflow-summary-value {
+          font-size: 14px;
+          font-weight: 650;
+          overflow-wrap: anywhere;
+        }
+
+        .workflow-correction {
+          display: grid;
+          gap: 10px;
+          padding: 15px;
+          border: 1px solid #dce8df;
+          border-radius: 12px;
+          background: #f8faf8;
+        }
+
+        .workflow-correction h3 {
+          margin: 0;
+          font-size: 14px;
+        }
+
+        .workflow-correction p {
+          margin: 0;
+          font-size: 13px;
+          line-height: 1.6;
+          color: #647568;
+        }
+
+        .workflow-correction-actions {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+
+        .workflow-readonly {
+          display: grid;
+          gap: 12px;
+        }
+
+        .workflow-readonly p {
+          margin: 0;
+        }
+
+        .workflow-question-list {
+          display: grid;
+          gap: 15px;
+        }
+
+        .workflow-question-list .question-review {
+          display: grid;
+          gap: 10px;
+          min-width: 0;
+        }
+
+        @media (max-width: 600px) {
+          .workflow-actions {
+            justify-content: stretch;
+          }
+
+          .workflow-actions > button {
+            flex: 1;
+          }
+        }
+      `}</style>
+
       {done ? (
         <div
           className="success-message"
           role="status"
         >
           <h3>Saved successfully</h3>
-          <p>Your workspace is up to date.</p>
+          <p>Your changes have been recorded.</p>
 
-          <Button onClick={onClose}>
+          <Button type="button" onClick={onClose}>
             Done
           </Button>
         </div>
       ) : (
-        <>
+        <div className="workflow-content">
           {resource === "lessons" && (
-            <>
+            <div className="workflow-section">
               <div className="lesson-body">
                 {String(row.body || "")}
               </div>
 
               {typeof row.video_url === "string" &&
-                /^https?:\/\//.test(row.video_url) && (
+                /^https?:\/\//i.test(row.video_url) && (
                   <a
                     className="text-link"
                     href={row.video_url}
@@ -154,29 +311,32 @@ export function WorkflowDialog({
                   </a>
                 )}
 
-              {role === "student" && (
-                <Button
-                  onClick={() =>
-                    execute(() =>
-                      post(
-                        `lessons/${row.id}/complete/`,
-                      ),
-                    )
-                  }
-                  disabled={busy}
-                >
-                  Mark lesson complete
-                </Button>
+              {isStudent && (
+                <div className="workflow-actions">
+                  <Button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void execute(
+                        () =>
+                          post(
+                            `lessons/${row.id}/complete/`,
+                          ),
+                        "Lesson marked complete.",
+                      )
+                    }
+                  >
+                    Mark lesson complete
+                  </Button>
+                </div>
               )}
-            </>
+            </div>
           )}
 
           {resource === "assignments" && (
-            <>
+            <div className="workflow-section">
               <p className="lesson-body">
-                {String(
-                  row.description || "",
-                )}
+                {String(row.description || "")}
               </p>
 
               {typeof row.file === "string" && (
@@ -189,74 +349,79 @@ export function WorkflowDialog({
               )}
 
               <div className="info-strip">
-                Due{" "}
-                {new Date(
-                  String(row.due_at),
-                ).toLocaleString()}{" "}
-                · {display(row.max_marks)} marks
+                Due {formatDate(row.due_at)} ·{" "}
+                {display(row.max_marks)} marks
               </div>
 
-              {role === "student" && (
+              {isStudent && (
                 <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
+                  className="workflow-section"
+                  onSubmit={(event) => {
+                    event.preventDefault();
 
-                    execute(() => {
-                      const data = new FormData();
+                    void execute(
+                      () => {
+                        const data = new FormData();
 
-                      data.append("text", text);
+                        data.append("text", text);
 
-                      if (file) {
-                        data.append("file", file);
-                      }
+                        if (file) {
+                          data.append("file", file);
+                        }
 
-                      return post(
-                        `assignments/${row.id}/submit/`,
-                        data,
-                      );
-                    });
+                        return post(
+                          `assignments/${row.id}/submit/`,
+                          data,
+                        );
+                      },
+                      "Assignment submitted.",
+                    );
                   }}
                 >
-                  <label>
+                  <label className="workflow-field">
                     Your answer
 
                     <textarea
                       rows={7}
                       value={text}
-                      onChange={(e) =>
-                        setText(e.target.value)
+                      onChange={(event) =>
+                        setText(event.target.value)
                       }
                     />
                   </label>
 
-                  <label>
+                  <label className="workflow-field">
                     Attach work
 
                     <input
                       type="file"
                       accept=".pdf,.txt,.png,.jpg,.jpeg,.docx"
-                      onChange={(e) =>
-                        setFile(
-                          e.target.files?.[0],
-                        )
+                      onChange={(event) =>
+                        setFile(event.target.files?.[0])
                       }
                     />
                   </label>
 
-                  <Button disabled={busy}>
-                    Submit assignment
-                  </Button>
+                  <div className="workflow-actions">
+                    <Button
+                      type="submit"
+                      disabled={busy}
+                    >
+                      {busy
+                        ? "Submitting..."
+                        : "Submit assignment"}
+                    </Button>
+                  </div>
                 </form>
               )}
-            </>
+            </div>
           )}
 
-          {resource === "submissions" && (
-            <>
+          {isSubmission && (
+            <div className="workflow-section">
               <div className="lesson-body">
                 {String(
-                  row.text ||
-                    "No written answer.",
+                  row.text || "No written answer.",
                 )}
               </div>
 
@@ -269,106 +434,156 @@ export function WorkflowDialog({
                 </a>
               )}
 
-              {role === "student" ? (
+              <div className="workflow-record-summary">
+                <div className="workflow-summary-item">
+                  <span className="workflow-summary-label">
+                    Recorded marks
+                  </span>
+                  <span className="workflow-summary-value">
+                    {hasExistingGrade
+                      ? display(row.marks)
+                      : "Not graded"}
+                  </span>
+                </div>
+
+                <div className="workflow-summary-item">
+                  <span className="workflow-summary-label">
+                    Grade status
+                  </span>
+                  <span className="workflow-summary-value">
+                    {row.released
+                      ? "Released"
+                      : "Not released"}
+                  </span>
+                </div>
+              </div>
+
+              {isStudent ? (
                 <div className="info-strip">
                   {row.released
-                    ? `${display(row.marks)} marks · ${display(row.feedback)}`
+                    ? `${display(row.marks)} marks · ${display(
+                        row.feedback,
+                      )}`
                     : "Your work is submitted. Feedback will appear after release."}
                 </div>
               ) : canGradeSubmission ? (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-
-                    execute(() =>
-                      post(
-                        `submissions/${row.id}/grade/`,
-                        {
-                          marks,
-                          feedback: text,
-                          released,
-                        },
-                      ),
-                    );
-                  }}
-                >
-                  <label>
-                    Marks
-
-                    <input
-                      type="number"
-                      required
-                      min="0"
-                      step=".01"
-                      value={marks}
-                      onChange={(e) =>
-                        setMarks(
-                          e.target.value,
-                        )
-                      }
-                    />
-                  </label>
-
-                  <label>
-                    Feedback
-
-                    <textarea
-                      value={text}
-                      onChange={(e) =>
-                        setText(
-                          e.target.value,
-                        )
-                      }
-                      placeholder={String(
-                        row.feedback ||
-                          "Constructive feedback",
-                      )}
-                    />
-                  </label>
-
-                  <label className="checkbox-label">
-                    Release grade to student
-
-                    <input
-                      type="checkbox"
-                      checked={released}
-                      onChange={(e) =>
-                        setReleased(
-                          e.target.checked,
-                        )
-                      }
-                    />
-                  </label>
-
-                  <Button disabled={busy}>
-                    Save grade
-                  </Button>
-                </form>
-              ) : isSubmissionOversight ? (
                 <>
+                  {isReleasedSubmission && (
+                    <div className="info-strip">
+                      This grade has already been released.
+                      Use the formal correction workflow for
+                      changes that require approval.
+                    </div>
+                  )}
+
+                  <form
+                    className="workflow-section"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+
+                      if (
+                        !Number.isFinite(Number(marks)) ||
+                        Number(marks) < 0
+                      ) {
+                        setError(
+                          new Error(
+                            "Enter valid non-negative marks.",
+                          ),
+                        );
+                        return;
+                      }
+
+                      void execute(
+                        () =>
+                          post(
+                            `submissions/${row.id}/grade/`,
+                            {
+                              marks,
+                              feedback: text,
+                              released,
+                            },
+                          ),
+                        "Grade saved successfully.",
+                      );
+                    }}
+                  >
+                    <label className="workflow-field">
+                      Marks
+
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step=".01"
+                        value={marks}
+                        disabled={busy || isReleasedSubmission}
+                        onChange={(event) =>
+                          setMarks(event.target.value)
+                        }
+                      />
+                    </label>
+
+                    <label className="workflow-field">
+                      Feedback
+
+                      <textarea
+                        value={text}
+                        disabled={busy || isReleasedSubmission}
+                        onChange={(event) =>
+                          setText(event.target.value)
+                        }
+                        placeholder="Constructive feedback"
+                      />
+                    </label>
+
+                    <label className="checkbox-label">
+                      Release grade to student
+
+                      <input
+                        type="checkbox"
+                        checked={released}
+                        disabled={busy || isReleasedSubmission}
+                        onChange={(event) =>
+                          setReleased(event.target.checked)
+                        }
+                      />
+                    </label>
+
+                    {!isReleasedSubmission && (
+                      <div className="workflow-actions">
+                        <Button
+                          type="submit"
+                          disabled={busy}
+                        >
+                          {busy ? "Saving..." : "Save grade"}
+                        </Button>
+                      </div>
+                    )}
+                  </form>
+                </>
+              ) : isSubmissionOversight ? (
+                <div className="workflow-readonly">
                   <div className="info-strip">
                     <strong>
                       Submission review — read only
                     </strong>
 
                     <p>
-                      Grading and grade release are
-                      managed by assigned instructors.
+                      Grading and grade release are managed
+                      by assigned instructors.
                     </p>
                   </div>
 
                   <p>
                     <strong>Marks:</strong>{" "}
-                    {row.marks == null
-                      ? "Not graded"
-                      : display(row.marks)}
+                    {hasExistingGrade
+                      ? display(row.marks)
+                      : "Not graded"}
                   </p>
 
                   <p>
                     <strong>Grade released:</strong>{" "}
-                    {row.released
-                      ? "Yes"
-                      : "No"}
+                    {row.released ? "Yes" : "No"}
                   </p>
 
                   <h3>Feedback</h3>
@@ -379,29 +594,65 @@ export function WorkflowDialog({
                         "No feedback provided.",
                     )}
                   </p>
-                </>
+                </div>
               ) : null}
-            </>
+
+              {canRequestCorrection &&
+                isReleasedSubmission && (
+                  <div className="workflow-correction">
+                    <h3>Grade correction</h3>
+
+                    <p>
+                      This is a released assessment grade.
+                      Authorized staff can request a
+                      correction with a reason and proposed
+                      value. The request must be reviewed
+                      before an approved change is applied.
+                    </p>
+
+                    <div className="workflow-correction-actions">
+                      <AcademicControl
+                        resource="submissions"
+                        row={row}
+                      />
+                    </div>
+                  </div>
+                )}
+            </div>
           )}
 
           {resource === "manual-grades" && (
-            <>
+            <div className="workflow-section">
               <p>
-                {display(
-                  row.offering_label,
-                )}
+                {display(row.offering_label)}
               </p>
 
-              {role !== "student" ||
-              row.released ? (
+              {role !== "student" || row.released ? (
                 <>
-                  <p>
-                    {display(row.marks)} /{" "}
-                    {display(
-                      row.max_marks,
-                    )}{" "}
-                    marks
-                  </p>
+                  <div className="workflow-record-summary">
+                    <div className="workflow-summary-item">
+                      <span className="workflow-summary-label">
+                        Recorded marks
+                      </span>
+
+                      <span className="workflow-summary-value">
+                        {display(row.marks)} /{" "}
+                        {display(row.max_marks)}
+                      </span>
+                    </div>
+
+                    <div className="workflow-summary-item">
+                      <span className="workflow-summary-label">
+                        Status
+                      </span>
+
+                      <span className="workflow-summary-value">
+                        {row.released
+                          ? "Released"
+                          : "Not released"}
+                      </span>
+                    </div>
+                  </div>
 
                   <h3>Feedback</h3>
 
@@ -414,128 +665,158 @@ export function WorkflowDialog({
                 </>
               ) : (
                 <p>
-                  Feedback will appear
-                  after release.
+                  Feedback will appear after release.
                 </p>
               )}
-            </>
+
+              {canRequestCorrection &&
+                row.released === true && (
+                  <div className="workflow-correction">
+                    <h3>Manual grade correction</h3>
+
+                    <p>
+                      Request a correction to this released
+                      grade using the existing approval
+                      workflow.
+                    </p>
+
+                    <AcademicControl
+                      resource="manual-grades"
+                      row={row}
+                    />
+                  </div>
+                )}
+            </div>
           )}
 
           {resource === "attendance-sessions" && (
-            <AttendanceRoster
-              session={row.id}
-            />
+            <div className="workflow-section">
+              <AttendanceRoster session={row.id} />
+            </div>
           )}
 
           {resource === "attempts" && (
-            <>
+            <div className="workflow-section">
               {questions.isPending ? (
                 <Loading />
               ) : questions.isError ? (
-                <ErrorState
-                  error={questions.error}
-                />
+                <ErrorState error={questions.error} />
               ) : (
                 <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
+                  className="workflow-section"
+                  onSubmit={(event) => {
+                    event.preventDefault();
 
-                    execute(() =>
-                      post(
-                        `attempts/${row.id}/grade/`,
-                        {
-                          manual_marks:
-                            Object.fromEntries(
-                              Object.entries(
-                                manual,
-                              ).filter(
-                                ([, value]) =>
-                                  value !== "",
+                    if (!isTeacher) return;
+
+                    void execute(
+                      () =>
+                        post(
+                          `attempts/${row.id}/grade/`,
+                          {
+                            manual_marks:
+                              Object.fromEntries(
+                                Object.entries(
+                                  manual,
+                                ).filter(
+                                  ([, value]) =>
+                                    value !== "",
+                                ),
                               ),
-                            ),
-                        },
-                      ),
+                          },
+                        ),
+                      "Quiz grades saved.",
                     );
                   }}
                 >
-                  {questions.data.results.map(
-                    (q) => (
+                  <div className="workflow-question-list">
+                    {questions.data.results.map((q) => (
                       <div
                         className="question-review"
                         key={String(q.id)}
                       >
-                        <b>
-                          {String(
-                            q.prompt,
-                          )}
-                        </b>
+                        <b>{String(q.prompt)}</b>
 
                         <p>
                           {display(
                             (
-                              row.answers as Record<
-                                string,
-                                unknown
-                              >
-                            )?.[
-                              String(q.id)
-                            ],
+                              row.answers as
+                                | Record<string, unknown>
+                                | undefined
+                            )?.[String(q.id)],
                           )}
                         </p>
 
-                        {role !== "student" &&
+                        {isTeacher &&
                           q.kind === "short" && (
-                            <label>
+                            <label className="workflow-field">
                               Marks (maximum{" "}
-                              {display(
-                                q.marks,
-                              )}
-                              )
+                              {display(q.marks)})
 
                               <input
                                 type="number"
                                 min="0"
-                                max={Number(
-                                  q.marks,
-                                )}
+                                max={Number(q.marks)}
                                 step=".01"
                                 value={
-                                  manual[
-                                    String(
-                                      q.id,
-                                    )
-                                  ] ?? ""
+                                  manual[String(q.id)] ??
+                                  ""
                                 }
-                                onChange={(e) =>
-                                  setManual({
-                                    ...manual,
-                                    [String(
-                                      q.id,
-                                    )]:
-                                      e.target.value,
-                                  })
+                                disabled={busy}
+                                onChange={(event) =>
+                                  setManual(
+                                    (current) => ({
+                                      ...current,
+                                      [String(q.id)]:
+                                        event.target.value,
+                                    }),
+                                  )
                                 }
                               />
                             </label>
                           )}
                       </div>
-                    ),
-                  )}
+                    ))}
+                  </div>
 
-                  {role !== "student" && (
-                    <Button disabled={busy}>
-                      Save manual grades
-                    </Button>
+                  {isTeacher && (
+                    <div className="workflow-actions">
+                      <Button
+                        type="submit"
+                        disabled={busy}
+                      >
+                        {busy
+                          ? "Saving..."
+                          : "Save manual grades"}
+                      </Button>
+                    </div>
                   )}
                 </form>
               )}
-            </>
+
+              {canRequestCorrection &&
+                row.released === true && (
+                  <div className="workflow-correction">
+                    <h3>Quiz grade correction</h3>
+
+                    <p>
+                      Request a correction to the released
+                      quiz result.
+                    </p>
+
+                    <AcademicControl
+                      resource="attempts"
+                      row={row}
+                    />
+                  </div>
+                )}
+            </div>
           )}
 
           {!!error && (
             <ErrorState error={error} />
           )}
-        </>
+        </div>
       )}
     </Dialog>
   );

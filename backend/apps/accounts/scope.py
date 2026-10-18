@@ -7,7 +7,8 @@ Institute-bound operations must still explicitly validate their target institute
 from django.db.models import Q
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from .models import Institute, Membership
+from .models import Institute, Membership, TeacherAppointment
+from .institution import require_departments
 from apps.academics.models import Offering
 
 
@@ -40,6 +41,13 @@ class Scope:
             if self.membership is None:
                 raise PermissionDenied("No active membership in this institute.")
             self.role = self.membership.role
+            if self.role == "head":
+                require_departments(self.institute)
+            if self.role == "head" and request.session.get("academic_workspace") == "teaching":
+                if not self.membership.can_teach:
+                    raise PermissionDenied("Teaching access was revoked. Return to department management.")
+                # The stored role remains Head; this workspace has teacher permissions only.
+                self.role = "teacher"
 
         request._intellilms_scope = self
 
@@ -66,16 +74,30 @@ class Scope:
                 else qs.none()
             )
         elif self.role == "teacher":
-            qs = qs.filter(teachers=self.user)
+            return self.teaching_offerings()
         elif self.role == "student":
             qs = qs.filter(
                 enrollments__student=self.user, enrollments__active=True
             )
         return qs.distinct()
 
+    def teaching_offerings(self):
+        qs = Offering.objects.filter(institute=self._require_institute())
+        member = self.membership
+        if not member or not (member.role == "teacher" or member.role == "head" and member.can_teach):
+            return qs.none()
+        # Explicit withdrawals revoke even stale/historical assignments. Existing
+        # reasoned Admin overrides without a departmental appointment stay valid.
+        withdrawn = TeacherAppointment.objects.filter(
+            institute=self.institute, membership=member, active=False
+        ).values("unit_id")
+        return qs.filter(teachers=self.user).exclude(course__unit_id__in=withdrawn).distinct()
+
     def check_offering(self, offering, write=False):
         if not self.offerings().filter(pk=offering.pk).exists():
             raise PermissionDenied("Course offering is outside your permitted scope.")
+        if write and offering.term.status == "closed":
+            raise ValidationError("This academic period is closed. Reopen it explicitly or use an audited academic correction.")
         if write and offering.archived:
             raise ValidationError("Archived course offerings cannot be changed.")
 

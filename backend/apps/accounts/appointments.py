@@ -12,6 +12,7 @@ from apps.insights.models import Audit
 from apps.insights.filters import ReportPagination
 from .models import Membership, TeacherAppointment, Institute
 from .scope import Scope
+from .institution import require_departments
 
 
 class AppointmentInput(serializers.Serializer):
@@ -48,6 +49,7 @@ class TeacherAppointmentViewSet(viewsets.ReadOnlyModelViewSet):
 
     def scope(self, write=False):
         scope=Scope(self.request)
+        require_departments(scope.institute)
         if scope.role not in (['head'] if write else ['admin','head']):
             raise PermissionDenied('Department Heads appoint teachers; Institute Admin can review appointments and provision eligibility.')
         return scope

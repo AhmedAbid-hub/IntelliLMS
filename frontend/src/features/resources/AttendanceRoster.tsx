@@ -1,3 +1,4 @@
+
 import {
   useEffect,
   useMemo,
@@ -5,8 +6,12 @@ import {
   type FormEvent,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-
-import { api, post, type Page } from "../../lib/api";
+import {
+  api,
+  post,
+  type Page,
+  type RecordData,
+} from "../../lib/api";
 import { Button } from "../../components/ui/button";
 import {
   Loading,
@@ -15,6 +20,7 @@ import {
 } from "../../components/shared";
 import { notifySaved } from "../../components/ToastProvider";
 import { useAuth } from "../auth/Auth";
+import { AcademicControl } from "./AcademicControl";
 
 type AttendanceStatus =
   | "present"
@@ -27,6 +33,9 @@ type RosterRow = {
   student: string;
   student_label: string;
   status: string | null;
+  attendance_id?: string | number | null;
+  attendance_record_id?: string | number | null;
+  finalized?: boolean;
 };
 
 type AttendanceRecord = {
@@ -106,6 +115,40 @@ function getInitials(name: string): string {
     .join("");
 }
 
+/**
+ * The roster row ID is not necessarily the ID of the
+ * underlying attendance record.
+ *
+ * Only explicit attendance-record identifiers are
+ * accepted for correction requests.
+ */
+function getAttendanceRecordId(
+  row: RosterRow,
+): string | null {
+  const value =
+    row.attendance_id ?? row.attendance_record_id;
+
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const id = String(value).trim();
+
+  return id.length ? id : null;
+}
+
+const cellStyle = {
+  padding: "12px 18px",
+  verticalAlign: "middle" as const,
+};
+
+const headerStyle = {
+  padding: "15px 18px",
+  fontSize: 12,
+  color: "#587064",
+  fontWeight: 700,
+};
+
 export function AttendanceRoster({
   session,
   readOnly = false,
@@ -114,17 +157,23 @@ export function AttendanceRoster({
   const client = useQueryClient();
 
   /*
-   * Only teachers can edit attendance in this version.
+   * Ordinary attendance marking is teacher-only.
    *
-   * Institute Admin: read-only.
-   * Department Head: read-only until teaching
-   * assignment verification is implemented.
-   * Student: read-only.
-   *
-   * The backend must independently verify that
-   * the teacher is assigned to the course.
+   * The backend must verify the teacher's actual
+   * course assignment and any finalized-record locks.
    */
   const canEdit = role === "teacher" && !readOnly;
+
+  /*
+   * Correction requests are separate from ordinary
+   * attendance marking.
+   *
+   * AcademicControl performs its own role checks,
+   * while the backend must enforce record scope.
+   */
+  const canRequestCorrection =
+    !readOnly &&
+    ["teacher", "head", "admin"].includes(role);
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -146,7 +195,9 @@ export function AttendanceRoster({
     ],
     queryFn: () =>
       api<Page<RosterRow>>(
-        `attendance-sessions/${session}/roster/?page=${page}&search=${encodeURIComponent(
+        `attendance-sessions/${encodeURIComponent(
+          session,
+        )}/roster/?page=${page}&search=${encodeURIComponent(
           search,
         )}`,
       ),
@@ -182,7 +233,7 @@ export function AttendanceRoster({
   function getStatus(
     row: RosterRow,
   ): AttendanceStatus | null {
-    if (canEdit && edits[row.student]) {
+    if (canEdit && edits[row.student] !== undefined) {
       return edits[row.student];
     }
 
@@ -202,7 +253,7 @@ export function AttendanceRoster({
 
     for (const student of students) {
       const status =
-        canEdit && edits[student.student]
+        canEdit && edits[student.student] !== undefined
           ? edits[student.student]
           : isAttendanceStatus(student.status)
             ? student.status
@@ -256,7 +307,13 @@ export function AttendanceRoster({
     student: RosterRow,
     status: AttendanceStatus,
   ) {
-    if (!canEdit || busy) return;
+    if (
+      !canEdit ||
+      busy ||
+      student.finalized === true
+    ) {
+      return;
+    }
 
     setEdits((current) => {
       const next = { ...current };
@@ -287,6 +344,10 @@ export function AttendanceRoster({
       const next = { ...current };
 
       for (const student of students) {
+        if (student.finalized === true) {
+          continue;
+        }
+
         if (student.status === "present") {
           delete next[student.student];
         } else {
@@ -329,6 +390,7 @@ export function AttendanceRoster({
       const records: AttendanceRecord[] = students
         .filter(
           (student) =>
+            student.finalized !== true &&
             edits[student.student] !== undefined,
         )
         .map((student) => ({
@@ -342,19 +404,28 @@ export function AttendanceRoster({
       }
 
       await post(
-        `attendance-sessions/${session}/mark/`,
+        `attendance-sessions/${encodeURIComponent(
+          session,
+        )}/mark/`,
         { records },
       );
 
       setEdits({});
 
-      await client.invalidateQueries({
-        queryKey: ["attendance-roster", session],
-      });
-
-      await client.invalidateQueries({
-        queryKey: ["resource", "attendance-sessions"],
-      });
+      await Promise.all([
+        client.invalidateQueries({
+          queryKey: ["attendance-roster", session],
+        }),
+        client.invalidateQueries({
+          queryKey: ["resource", "attendance-sessions"],
+        }),
+        client.invalidateQueries({
+          queryKey: ["resource", "attendance"],
+        }),
+        client.invalidateQueries({
+          queryKey: ["gradebook"],
+        }),
+      ]);
 
       setSaved(
         `${records.length} attendance ${
@@ -392,41 +463,42 @@ export function AttendanceRoster({
             width: "100%",
             borderCollapse: "collapse",
             textAlign: "left",
-            minWidth: 440,
+            minWidth: canRequestCorrection ? 650 : 440,
           }}
         >
           <thead>
             <tr
               style={{
                 background: "#f5f9f6",
-                borderBottom:
-                  "1px solid #e0e9e2",
+                borderBottom: "1px solid #e0e9e2",
               }}
             >
-              <th
-                scope="col"
-                style={{
-                  padding: "15px 18px",
-                  fontSize: 12,
-                  color: "#587064",
-                  fontWeight: 700,
-                }}
-              >
+              <th scope="col" style={headerStyle}>
                 Student
               </th>
 
               <th
                 scope="col"
                 style={{
-                  padding: "15px 18px",
-                  fontSize: 12,
-                  color: "#587064",
-                  fontWeight: 700,
+                  ...headerStyle,
                   width: 190,
                 }}
               >
                 Attendance status
               </th>
+
+              {canRequestCorrection && (
+                <th
+                  scope="col"
+                  style={{
+                    ...headerStyle,
+                    width: 195,
+                    textAlign: "right",
+                  }}
+                >
+                  Correction
+                </th>
+              )}
             </tr>
           </thead>
 
@@ -442,6 +514,20 @@ export function AttendanceRoster({
                 ? SUMMARY_STYLES[status]
                 : SUMMARY_STYLES.unmarked;
 
+              const attendanceId =
+                getAttendanceRecordId(student);
+
+              const isFinalized =
+                student.finalized === true;
+
+              const canEditRow =
+                canEdit && !isFinalized;
+
+              const canCorrectRow =
+                canRequestCorrection &&
+                attendanceId !== null &&
+                isAttendanceStatus(student.status);
+
               return (
                 <tr
                   key={student.id}
@@ -455,11 +541,7 @@ export function AttendanceRoster({
                       : "#ffffff",
                   }}
                 >
-                  <td
-                    style={{
-                      padding: "12px 18px",
-                    }}
-                  >
+                  <td style={cellStyle}>
                     <div
                       style={{
                         display: "flex",
@@ -513,19 +595,26 @@ export function AttendanceRoster({
                             Unsaved change
                           </span>
                         )}
+
+                        {isFinalized && (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              color: "#986500",
+                            }}
+                          >
+                            Finalized record
+                          </span>
+                        )}
                       </div>
                     </div>
                   </td>
 
-                  <td
-                    style={{
-                      padding: "12px 18px",
-                    }}
-                  >
-                    {canEdit ? (
+                  <td style={cellStyle}>
+                    {canEditRow ? (
                       <select
                         aria-label={`Attendance status for ${student.student_label}`}
-                        disabled={busy}
+                        disabled={busy || roster.isFetching}
                         value={status ?? ""}
                         onChange={(event) =>
                           setStudentStatus(
@@ -537,33 +626,31 @@ export function AttendanceRoster({
                         style={{
                           width: "100%",
                           minHeight: 40,
-                          border:
-                            "1px solid #d5e3d9",
+                          border: "1px solid #d5e3d9",
                           borderRadius: 8,
                           padding: "8px 10px",
                           fontSize: 13,
                           fontWeight: 600,
                           background: "#ffffff",
                           color: "#1b372b",
-                          cursor: busy
-                            ? "not-allowed"
-                            : "pointer",
+                          cursor:
+                            busy || roster.isFetching
+                              ? "not-allowed"
+                              : "pointer",
                         }}
                       >
                         <option value="" disabled>
                           Not marked
                         </option>
 
-                        {STATUS_OPTIONS.map(
-                          (option) => (
-                            <option
-                              key={option.value}
-                              value={option.value}
-                            >
-                              {option.label}
-                            </option>
-                          ),
-                        )}
+                        {STATUS_OPTIONS.map((option) => (
+                          <option
+                            key={option.value}
+                            value={option.value}
+                          >
+                            {option.label}
+                          </option>
+                        ))}
                       </select>
                     ) : (
                       <span
@@ -583,6 +670,46 @@ export function AttendanceRoster({
                       </span>
                     )}
                   </td>
+
+                  {canRequestCorrection && (
+                    <td
+                      style={{
+                        ...cellStyle,
+                        textAlign: "right",
+                      }}
+                    >
+                      {canCorrectRow ? (
+                        <AcademicControl
+                          resource="attendance"
+                          row={
+                            {
+                              id: attendanceId,
+                              student: student.student,
+                              student_label:
+                                student.student_label,
+                              status: student.status,
+                            } as RecordData
+                          }
+                        />
+                      ) : (
+                        <span
+                          className="muted"
+                          style={{
+                            fontSize: 12,
+                          }}
+                          title={
+                            !isAttendanceStatus(student.status)
+                              ? "Attendance must be recorded before a correction can be requested."
+                              : "The roster API must provide the attendance record ID."
+                          }
+                        >
+                          {!isAttendanceStatus(student.status)
+                            ? "Not recorded"
+                            : "Unavailable"}
+                        </span>
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -630,8 +757,8 @@ export function AttendanceRoster({
             }}
           >
             {canEdit
-              ? "Review attendance and update student statuses. Changes are saved only when you select Save."
-              : "Review recorded attendance for this session. These records are read-only."}
+              ? "Review and mark attendance. Saved records can be corrected through the approval workflow when available."
+              : "Review recorded attendance for this session."}
           </p>
         </div>
 
@@ -663,7 +790,7 @@ export function AttendanceRoster({
           }}
         >
           <strong>Read-only attendance review.</strong>{" "}
-          Attendance statuses can only be changed by
+          Ordinary attendance marking is limited to
           authorized instructors assigned to the course.
         </div>
       )}
@@ -694,8 +821,7 @@ export function AttendanceRoster({
                 fontSize: 12,
                 fontWeight: 600,
                 color: item.style.color,
-                background:
-                  item.style.background,
+                background: item.style.background,
                 padding: "5px 9px",
                 borderRadius: 7,
                 marginBottom: 12,
@@ -771,7 +897,10 @@ export function AttendanceRoster({
             disabled={
               busy ||
               roster.isFetching ||
-              !students.length
+              !students.some(
+                (student) =>
+                  student.finalized !== true,
+              )
             }
             onClick={markAllPresent}
           >

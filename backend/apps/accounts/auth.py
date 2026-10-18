@@ -1,5 +1,4 @@
 import logging
-from smtplib import SMTPException
 from drf_spectacular.utils import extend_schema
 from django.conf import settings
 from django.db import transaction
@@ -8,7 +7,10 @@ from django.contrib.auth import authenticate, login, logout, update_session_auth
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.core.mail import send_mail
+from django.core.mail import get_connection, send_mail
+from django.core.mail.backends.smtp import EmailBackend as SMTPBackend
+from django.core.mail.backends.locmem import EmailBackend as MemoryBackend
+from django.core.mail.backends.filebased import EmailBackend as FileBackend
 from django.http import JsonResponse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -21,10 +23,12 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.authentication import SessionAuthentication
 from .models import User, Membership, Institute
+from .institution import academic_config
 from .contracts import (
     LoginInput,
     ProfileInput,
     SelectInstituteInput,
+    SelectWorkspaceInput,
     PasswordChangeInput,
     PasswordResetInput,
     PasswordConfirmInput,
@@ -43,7 +47,7 @@ def identity(request):
     memberships = list(
         Membership.objects.filter(
             user=user, active=True, institute__active=True
-        ).values("institute_id", "institute__name", "role", "unit_id")
+        ).values("institute_id", "institute__name", "role", "unit_id", "can_teach")
     )
     selected = request.session.get("institute_id")
     permitted = user.is_superuser or any(
@@ -55,10 +59,12 @@ def identity(request):
         else None
     )
     return {
+        "academic_workspace": request.session.get("academic_workspace", "department"),
         "institute_profile": (
             {
                 "name": institute.name,
                 "kind": institute.kind,
+                "academic_config": academic_config(institute),
                 "terminology": institute.terminology,
                 "grading_rules": institute.grading_rules,
             }
@@ -100,6 +106,7 @@ def login_view(request):
             {"detail": "Invalid credentials or disabled account."}, status=400
         )
     login(request, user)
+    request.session["academic_workspace"] = "department"
     membership = Membership.objects.filter(
         user=user, active=True, institute__active=True
     ).first()
@@ -139,6 +146,23 @@ def select_institute(request):
     ):
         return Response({"detail": "Institute access denied."}, status=403)
     request.session["institute_id"] = str(institute.id)
+    request.session["academic_workspace"] = "department"
+    return Response(identity(request))
+
+
+@extend_schema(request=SelectWorkspaceInput, responses=IdentityResult)
+@api_view(["POST"])
+def select_workspace(request):
+    values = payload(SelectWorkspaceInput, request.data)
+    member = Membership.objects.filter(
+        user=request.user, institute_id=request.session.get("institute_id"),
+        institute__active=True, active=True, role="head",
+    ).first()
+    if request.user.is_superuser or not member:
+        return Response({"detail": "Only Department Heads use separate management and teaching workspaces."}, status=403)
+    if values["academic_workspace"] == "teaching" and not member.can_teach:
+        return Response({"detail": "Teaching capability must be authorized by your Institute Admin."}, status=403)
+    request.session["academic_workspace"] = values["academic_workspace"]
     return Response(identity(request))
 
 
@@ -159,23 +183,42 @@ def password_change(request):
     return Response({"detail": "Password changed."})
 
 
-def send_password_email(user, token, invitation=False):
+def password_email_delivery(user, token, invitation=False):
+    """Return transport evidence, never inbox delivery. Do not log message bodies."""
     uid = urlsafe_base64_encode(force_bytes(user.pk))
+    logger = logging.getLogger(__name__)
     try:
+        connection = get_connection(fail_silently=False)
+        if isinstance(connection, SMTPBackend):
+            outcome = "accepted"
+        elif isinstance(connection, (MemoryBackend, FileBackend)):
+            outcome = "local"
+        else:
+            # Console prints the secret setup link to logs; dummy drops it.
+            logger.error("Password email delivery failed for account %s: unsupported mail transport", user.pk)
+            return "failed"
         sent = send_mail(
             "Your IntelliLMS invitation" if invitation else "Reset your IntelliLMS password",
-            f"Set your password: {settings.FRONTEND_URL}/reset/{uid}/{token}\nThis link expires in {'48 hours' if invitation else '30 minutes'}. If you did not request this, contact your administrator.",
+            f"Set your password: {settings.FRONTEND_URL.rstrip('/')}/reset/{uid}/{token}\nThis link expires in {'48 hours' if invitation else '30 minutes'}. If you did not request this, contact your administrator.",
             settings.DEFAULT_FROM_EMAIL,
             [user.email],
+            connection=connection,
+            fail_silently=False,
         )
-    except (SMTPException, OSError):
+    except Exception as exc:
         # Delivery is after commit: a mail outage must not report account creation
         # as failed or prevent later CSV invitations from being attempted.
         # Do not log SMTP exception text, recipients, passwords or reset tokens.
-        sent = 0
-    if not sent:
-        logging.getLogger(__name__).error("Password email delivery failed for account %s", user.pk)
-    return bool(sent)
+        logger.error("Password email delivery failed for account %s: %s", user.pk, type(exc).__name__)
+        return "failed"
+    if sent != 1:
+        logger.error("Password email delivery failed for account %s: backend did not accept the message", user.pk)
+        return "failed"
+    return outcome
+
+
+def send_password_email(user, token, invitation=False):
+    return password_email_delivery(user, token, invitation) != "failed"
 
 
 def send_reset(user):

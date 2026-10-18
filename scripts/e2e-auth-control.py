@@ -5,9 +5,13 @@ import re
 import sys
 from datetime import timedelta
 from unittest.mock import patch
+from e2e_database import database_path
 
 backend=Path(__file__).resolve().parents[1]/"backend"
-os.environ.update(DEBUG="True",DJANGO_SETTINGS_MODULE="config.e2e_settings",SECRET_KEY="isolated-e2e-only-secret",DB_ENGINE="sqlite",SQLITE_NAME=str(backend/"e2e.sqlite3"))
+database = database_path()
+if not database.is_file():
+    raise RuntimeError("The isolated browser run database does not exist.")
+os.environ.update(DEBUG="True",DJANGO_SETTINGS_MODULE="config.e2e_settings",SECRET_KEY="isolated-e2e-only-secret",DB_ENGINE="sqlite",SQLITE_NAME=str(database))
 sys.path.insert(0,str(backend))
 import django
 django.setup()
@@ -18,7 +22,7 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from apps.accounts.models import User, AccountInvitation
 
-if Path(settings.DATABASES["default"]["NAME"]).resolve()!=backend/"e2e.sqlite3":
+if Path(settings.DATABASES["default"]["NAME"]).resolve()!=database:
     raise RuntimeError("Refusing non-disposable database")
 action,username=sys.argv[1:3]
 if not re.fullmatch(r"auth-browser-[a-z0-9-]+",username):

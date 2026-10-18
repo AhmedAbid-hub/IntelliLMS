@@ -103,3 +103,40 @@ def test_platform_deactivation_cannot_bypass_last_admin_guard(world, client_for)
     assert response.status_code == 400
     a['admin'].refresh_from_db()
     assert a['admin'].is_active
+
+
+@pytest.mark.django_db
+def test_school_departure_reassigns_without_departments_and_keeps_closed_history(world, client_for):
+    from apps.academics.models import Term, Offering
+    a = world['a']; a['institute'].kind = 'school'; a['institute'].save()
+    a['course'].unit = None; a['course'].save()
+    old = member(a, 'teacher')
+    user = User.objects.create_user(username='schoolreplacement')
+    replacement = Membership.objects.create(institute=a['institute'], user=user, role='teacher')
+    period = Term.objects.create(institute=a['institute'], year=a['year'], name='Closed period', start=a['term'].start, end=a['term'].end, status='closed')
+    past = Offering.objects.create(institute=a['institute'], course=a['course'], term=period, title='Preserved teaching history')
+    past.teachers.add(old.user)
+    client = client_for(a,'admin')
+    assert client.get(f'/api/v1/memberships/{old.pk}/impact/').data['active_assignments'] == 1
+    response = client.post(f'/api/v1/memberships/{old.pk}/transition/', {'operation':'remove', 'replacement':str(replacement.pk), 'reason':'Approved school staffing change'}, format='json')
+    assert response.status_code == 200, response.data
+    assert a['offering'].teachers.filter(pk=user.pk).exists()
+    assert past.teachers.filter(pk=old.user_id).exists() and not past.teachers.filter(pk=user.pk).exists()
+    assert client_for(a,'teacher').get('/api/v1/offerings/').status_code == 403
+
+
+@pytest.mark.django_db
+def test_replacement_uses_active_appointment_not_only_primary_department(world, client_for):
+    from apps.accounts.models import TeacherAppointment
+    a = world['a']; old = member(a,'teacher')
+    user = User.objects.create_user(username='appointedreplacement')
+    replacement = Membership.objects.create(institute=a['institute'], user=user, role='teacher')
+    appointment = TeacherAppointment.objects.create(institute=a['institute'], membership=replacement, unit=a['unit'], reason='Approved appointment')
+    data = {'operation':'remove', 'replacement':str(replacement.pk), 'reason':'Replace outgoing instructor'}
+    client = client_for(a,'admin'); url = f'/api/v1/memberships/{old.pk}/transition/'
+    appointment.active = False; appointment.save()
+    assert client.post(url, data, format='json').status_code == 400
+    appointment.active = True; appointment.save()
+    response = client.post(url, data, format='json')
+    assert response.status_code == 200, response.data
+    assert a['offering'].teachers.filter(pk=user.pk).exists()

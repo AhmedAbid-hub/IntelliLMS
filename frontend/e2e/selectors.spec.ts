@@ -34,21 +34,21 @@ test("course choice search and pagination reach records beyond the first fifty",
     .filter({ has: page.getByRole("button", { name: "Choose subject", exact:true }) });
   await selector.getByRole("button",{name:"Choose subject",exact:true}).click();
   await expect(
-    selector.getByRole("button", { name: "Next Choose subject page" }),
+    dialog.getByRole("button", { name: "Next Choose subject page" }),
   ).toBeEnabled();
   expect(requests).toHaveLength(1);
-  await selector
+  await dialog
     .getByRole("button", { name: "Next Choose subject page" })
     .click();
-  await expect(selector.getByText(/Page 2/)).toBeVisible();
+  await expect(dialog.getByText(/Page 2/)).toBeVisible();
   expect(requests).toHaveLength(2);
-  await selector.getByRole("searchbox").fill("Paged choice 50");
-  await expect(selector.getByRole("option")).toHaveCount(1);
-  await selector.getByRole("option",{name:"Paged choice 50",exact:true}).click();
+  await dialog.getByRole("searchbox").fill("Paged choice 50");
+  await expect(dialog.getByRole("option")).toHaveCount(1);
+  await dialog.getByRole("option",{name:"Paged choice 50",exact:true}).click();
   await expect(selector.getByRole("button",{name:"Choose subject",exact:true})).toContainText("Paged choice 50");
   await selector.getByRole("button",{name:"Choose subject",exact:true}).click();
-  await selector.getByRole("searchbox").fill("Paged choice 00");
-  await expect(selector.getByRole("option")).toHaveCount(1);
+  await dialog.getByRole("searchbox").fill("Paged choice 00");
+  await expect(dialog.getByRole("option")).toHaveCount(1);
   await expect(selector.locator("select option:checked")).toHaveText(
     "Paged choice 50",
   );

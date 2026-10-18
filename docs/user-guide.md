@@ -2,17 +2,17 @@
 
 ## Super Admin
 
-Sign in with a protected platform account. Institutes lists all institutes, including inactive ones. Add an institute with a unique code and category; edit its active flag to deactivate it. Select an active institute in the sidebar before managing its records. Invite an administrator through People. In Platform accounts, search for an existing user and choose Link to selected institute, then set the membership role and academic unit. Edit Active account to disable platform access; administrator accounts cannot be disabled through this screen. This differs from a membership status change, which affects only one institute. Account-status changes are recorded in Django admin LogEntry. The global overview appears when no institute is selected. Audit history shows the selected institute's tracked changes.
+Sign in with a platform account. Platform overview and Institutes show institution counts and status. Create an institute with its correct school/college/university type, then invite its Institute Admin. Platform accounts exposes only administrative accounts; link an existing administrator to the selected institute when needed. Account deactivation is guarded against disabling yourself, a platform administrator or the last active institute administrator. Platform audit records global administrative events. Selecting an institute does not grant teaching, ordinary learner-account access or individual academic results.
 
 ## Institute Admin
 
-Select your institute. In Academic structure, create units, years, terms, programs and sections; then define reusable courses. Invite teachers/students in People or import a CSV. Created users receive a password-setup email through the configured backend. Add course offerings, choose instructors, and create enrollments. Update a membership's active flag to revoke access to this institute without disrupting other memberships. Manage announcements, review grades/attendance and export course progress CSV.
+Select your institute and open Institute setup or Academic structure. Create the type-appropriate years, classes/programs, sections and subjects, then offerings. Schools assign teachers directly; college/university Heads normally own department assignments, with a reasoned Admin override when necessary. Invite staff, admit students with reviewed placement/enrollment, or preview a CSV import. Use People actions for consequence-reviewed role/status/removal changes and reassignment. Review grades/attendance and use the audited approval/correction workflows; administration alone does not authorize ordinary teaching or grade entry.
 
 CSV headers are `username,email,role,first_name,unit`. Role is student or teacher; unit is an exact institute unit name. A duplicate account or invalid row rejects the whole import. Download the error CSV, correct the source, and retry. Existing accounts are not overwritten.
 
 ## Department Head
 
-Your membership must have an academic unit. My courses shows only offerings whose course belongs to that unit. Create departmental offerings, assign eligible teachers, and enroll departmental students. Review scoped people, gradebook, attendance, announcements and predictions. Unit descendants are not automatically included. Academic structure changes remain an institute administrator function.
+This workspace is available only where departments exist. Your membership must identify your department. In Department management, appoint Admin-authorized eligible teachers, assign them to existing department offerings, and manage permitted enrollment. Review department reports and announcements. Institute Admin creates academic definitions and offerings. Independent corrections require explicit delegation on the affected course. If you have teaching capability and an assigned course, switch to My teaching for instructor actions; department oversight alone does not grant those actions. Withdrawn appointments or assignments revoke teaching access immediately.
 
 ## Teacher
 
@@ -39,11 +39,11 @@ Start or resume a quiz inside its availability window. The timer shows the serve
 
 ## New administration and reporting workflows
 
-- **Super Admin:** open Platform overview without leaving the selected institute. Choose an institute to inspect counts and administrator memberships, then use Open institute people management to invite, link or update people. Platform settings controls the public name, support email and login notice; changes are audited. Infrastructure secrets stay in deployment configuration.
+- **Super Admin:** open Platform overview without leaving the selected institute. Choose an institute to inspect counts and administrator memberships, then use administrator management to invite, link or update administrative accounts. Platform settings controls the public name, support email and login notice; changes are audited. Infrastructure secrets stay in deployment configuration.
 - **Institute Admin:** Institute settings now includes all singular/plural academic labels, optional descending grade bands and points, repeated-quiz attempt selection, missing-category behavior and pass threshold. Changes apply immediately to provisional results and future exports. They do not rewrite stored prediction features.
 - **Admin/Head:** dashboard shortcuts open People, instructor assignments, enrollment and progress. People filters combine role, status and academic unit within your authorized scope.
 - **Teacher:** dashboard shortcuts lead to submissions, attendance and the question bank. Learning insights searches/pages enrolled learner-course pairs and pages saved estimate history. Estimates remain experimental and must not determine academic access or grades.
-- **All roles:** Gradebook supports learner/course search, academic unit, term and active/archive filters with page controls. Students remain restricted to their own enrollments. Staff CSV export includes all matching rows, not only the current page.
+- **Academic roles:** Gradebook supports learner/course search and institution-aware year/class/program/section/subject/period/study-year/batch and active/archive filters with page controls. Students remain restricted to their own enrollments. Staff CSV export includes all matching rows, not only the current page.
 
 Academic scheduling now compares overlapping academic terms; reusing a room/time in a separate term is allowed. Assigning an instructor to an existing offering rejects conflicts with that instructor's other timetable entries. Calendar changes revalidate existing conflicts and schedule writes serialize per institute; PostgreSQL concurrency tests passed.
 
@@ -66,3 +66,29 @@ Students can open Grades → Manual assessment grades, then Review, to read rele
 A successful invitation/import confirms account creation, not inbox delivery. If an email fails to arrive, use Forgot password on the login page after confirming the configured mail service works. Administrators should inspect delivery-failure logs; do not re-import or recreate an existing account. Email delivery is attempted after the database transaction commits, and a failed message does not prevent later CSV invitations from being attempted. There is no background retry queue.
 
 Department heads can select existing course/program/section definitions in their own assigned unit before the first offering exists. Institute Admins still create and edit academic definitions. In a course, use Left/Right arrows, Home and End to switch content tabs with the keyboard.
+
+
+## Institution setup and academic progression (15 October 2026)
+
+Create an institute with its correct type; existing types cannot be silently converted. Schools use Academic years → Classes/grades → Sections → Subjects and direct administrator teacher assignment. Colleges default to two annual study years and support a different configured program duration. Universities use programs, batches and configurable semesters. Setup, dashboards, forms and report filters adapt to the chosen type.
+
+For admission, choose the academic year, class/program, section and study-year/semester stage. Choose the period and eligible offerings. Review the preview before creating the account. Existing learners use People → Placement to inspect their current record and history. Transfer preserves previous placements; explicitly withdraw any overlapping delivery before choosing its replacement.
+
+Use **Review academic decision** in the placement view for progression, repetition, correction, withdrawal, completion or graduation. Enter a reason and next placement when applicable. Preview the released evidence, check the review acknowledgement, then confirm. If grades or placement changed, review again. A required-pass policy blocks progression/completion until all required mapped subjects have released passing results; the default manual-review policy requires the administrator's decision. ML estimates never decide progression.
+
+Students use **Academic history** for released results from previous enrollments and their recorded decisions. Ending an enrollment removes course-content access without removing released historical results. Admins can inspect decision evidence and university program totals from Placement. Teachers/Heads retain course-scoped progress reports.
+
+University GPA/CGPA is disabled initially. In Institute settings, configure grade bands/points, select an explicit credit-weighted repeat policy (all, latest released, or best released), and give the policy-change reason. Configure positive credits on each subject through Academic structure. Results show separate program totals, semester GPA, credits and excluded records. They are provisional and use current rules/credits, not an immutable official transcript. Schools/colleges do not acquire GPA by default.
+
+Academic progress, grade reports, comparisons and learning insights expose appropriate academic filters. College study-year filtering uses recorded placement stages. Instructor search changes which instructors are listed, not how many learners they teach. Historical unknown stages are not guessed.
+
+Close a period to prevent ordinary teaching/enrollment writes while preserving read access and authorized correction workflows. New attendance dates must lie inside the course period; calendar edits cannot exclude recorded sessions. To change academic identity, create the appropriate new record and use reviewed placement/enrollment workflows rather than moving past assessments into another period.
+
+
+## Public-data learning estimates
+
+An assigned teacher opens a course → **AI insights** → **Analyze class**. The existing bounded analysis shows recorded attendance, submissions, quiz/grade/progress indicators alongside a separate estimate. **Prediction basis** explains the dataset, target, measured external evaluation and the two actual assignment inputs. **Generate estimate** supports one selected learner; **Recent estimates → Details** retains the original model warning and source even after a model changes.
+
+The public model predicts a score below 40% on the next submitted assignment. It requires two released assignments with distinct past deadlines and an upcoming published, unsubmitted assignment; otherwise a precise insufficient-data explanation appears. Quiz scores, attendance or clicks cannot replace missing assignments. OULAD's 40% threshold does not replace your institute's grading rules. The model misses many low-score outcomes and also produces false alarms; use recorded work and human discussion to decide supportive action. It never decides grades, penalties or progression.
+
+Historical synthetic estimates remain explicitly labeled. No live demo dates or marks were rewritten. For a reproducible demonstration with fictional accounts and compatible past deadlines, follow the isolated [browser demonstration](ml-methodology.md#reproduce-training-and-the-demonstration).

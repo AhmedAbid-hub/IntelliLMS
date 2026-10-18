@@ -12,24 +12,24 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
-  --green: #146347;
-  --green-dark: #103f30;
-  --green-deep: #0c3025;
-  --green-hover: #0f513b;
-  --green-light: #e6f3eb;
-  --green-soft: #f1f8f3;
+  --green: #24765b;
+  --green-dark: #123d32;
+  --green-deep: #0e3028;
+  --green-hover: #1a6049;
+  --green-light: #e8f3ec;
+  --green-soft: #f3f7f3;
 
-  --cream: #f7f8f4;
+  --cream: #f7f6f2;
   --white: #ffffff;
   --surface: #ffffff;
-  --surface-muted: #fafcf9;
+  --surface-muted: #faf9f6;
 
-  --text: #213b2e;
-  --text-secondary: #4f6558;
-  --muted: #718176;
+  --text: #22372f;
+  --text-secondary: #52665e;
+  --muted: #718078;
 
-  --border: #dfe8df;
-  --border-strong: #cbdace;
+  --border: #e3e8e1;
+  --border-strong: #d1ddd5;
 
   --danger: #ad4147;
   --success: #21764e;
@@ -39,9 +39,9 @@
   --radius: 12px;
   --radius-lg: 18px;
 
-  --shadow-sm: 0 2px 10px rgba(21, 55, 34, 0.035);
-  --shadow: 0 10px 35px rgba(21, 55, 34, 0.06);
-  --shadow-lg: 0 24px 70px rgba(13, 45, 28, 0.15);
+  --shadow-sm: 0 2px 12px rgba(20, 45, 37, 0.035);
+  --shadow: 0 10px 32px rgba(20, 45, 37, 0.065);
+  --shadow-lg: 0 24px 70px rgba(13, 45, 38, 0.16);
 
   --sidebar-width: 264px;
 
@@ -2560,6 +2560,7 @@ form select[multiple] {
   .sidebar {
     width: min(290px, 85vw);
     transform: translateX(-100%);
+    visibility: hidden;
 
     z-index: 61;
     box-shadow: 10px 0 45px rgba(12, 40, 24, 0.18);
@@ -2569,6 +2570,7 @@ form select[multiple] {
 
   .sidebar.sidebar-open {
     transform: translateX(0);
+    visibility: visible;
   }
 
   .sidebar-backdrop {
@@ -5777,4 +5779,288 @@ form select[multiple] {
   padding: 0 !important;
   opacity: 0 !important;
   pointer-events: none !important;
+}
+
+/* ==========================================================
+   INTELLILMS — PREMIUM BREADCRUMBS
+   ========================================================== */
+
+.premium-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.premium-breadcrumb .breadcrumb-home,
+.premium-breadcrumb .breadcrumb-parent {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  color: #64796b;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.premium-breadcrumb .breadcrumb-home:hover,
+.premium-breadcrumb .breadcrumb-parent:hover {
+  background: #edf6ef;
+  color: #146347;
+}
+
+.premium-breadcrumb .breadcrumb-home svg {
+  color: #478b65;
+}
+
+.premium-breadcrumb .breadcrumb-separator {
+  flex-shrink: 0;
+  color: #a8b9ae;
+}
+
+.premium-breadcrumb .breadcrumb-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 33px;
+  padding: 7px 13px;
+
+  background: #e8f5ec;
+  color: #146347;
+  border: 1px solid #cfe7d6;
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.premium-breadcrumb .breadcrumb-current svg {
+  flex-shrink: 0;
+  color: #16815a;
+}
+
+.premium-breadcrumb a:focus-visible {
+  outline: 2px solid #64ae81;
+  outline-offset: 3px;
+}
+
+/* Smaller screens */
+
+@media (max-width: 768px) {
+  .premium-breadcrumb {
+    gap: 5px;
+    font-size: 11px;
+  }
+
+  .premium-breadcrumb .breadcrumb-home,
+  .premium-breadcrumb .breadcrumb-parent {
+    padding: 5px 6px;
+  }
+
+  .premium-breadcrumb .breadcrumb-current {
+    padding: 6px 9px;
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-breadcrumb a {
+    transition: none;
+  }
+}
+
+
+/* ==========================================================
+   INTELLILMS — PREMIUM CAMPUS COLOR REFINEMENT
+   Scoped visual overrides; original component styles preserved.
+   ========================================================== */
+
+:root {
+  --accent-slate: #637c91;
+  --accent-slate-soft: #edf2f7;
+  --accent-gold: #b08a50;
+  --accent-gold-soft: #f8f1e5;
+}
+
+/* Warmer canvas, restrained surfaces and borders */
+body, .app-shell, .main-shell { background-color: var(--cream); }
+.sidebar { background: #fffefa; border-right-color: #e5e9e2; }
+.topbar { background: rgba(255, 254, 251, 0.98); border-bottom-color: #e5e9e2; }
+.app-footer { background: #fffefa; border-top-color: #e5e9e2; }
+
+/* Elegant brand hierarchy and accessible navigation */
+.brand, .page-heading h1, .page-heading h2 { color: var(--green-dark); }
+.sidebar nav a.active, .sidebar-bottom > a.active {
+  background: #e8f3ec;
+  color: #185c45;
+}
+.sidebar nav a:hover, .sidebar-bottom > a:hover, .sidebar-bottom > button:hover {
+  background: #f1f6f1;
+  color: #185c45;
+}
+.institute-select {
+  background: #f5f8f3;
+  border-color: #dce7dc;
+}
+.sidebar-nav-heading { color: #79867e; }
+
+/* Clear, calm interaction feedback */
+.button-primary { background: #24765b; color: #fff; }
+.button-primary:hover:not(:disabled) {
+  background: #1a6049;
+  box-shadow: 0 5px 16px rgba(36, 118, 91, 0.16);
+}
+.button-outline { border-color: #d5dfd7; }
+.button-outline:hover:not(:disabled) {
+  background: #f4f8f5;
+  border-color: #a9c9b7;
+}
+
+/* Surface depth without harsh shadows */
+.panel, .stat-card, .course-card, .academic-card {
+  border-color: #e3e8e1;
+  box-shadow: 0 3px 15px rgba(23, 52, 39, 0.035);
+}
+.stat-card:hover, .course-card:hover {
+  box-shadow: 0 12px 30px rgba(23, 52, 39, 0.085);
+}
+
+/* More neutral table chrome for data-heavy screens */
+th { background: #f5f7f4; color: #53695e; }
+tbody tr:hover { background: #fafbf8; }
+.search-box:focus-within {
+  border-color: #79ad97;
+  box-shadow: 0 0 0 3px rgba(36, 118, 91, 0.10);
+}
+
+/* A little blue and gold to break up green-only sections */
+.course-art-1 { background: #f7efe2; color: #9a7642; }
+.course-art-2 { background: #eaf0f6; color: #59758d; }
+.tint-0 { background: #f8efe1; color: #997443; }
+.tint-2 { background: #eaf0f6; color: #59758d; }
+
+/* Restrained warm banner, preserving all existing content and layout */
+.welcome-banner {
+  background: linear-gradient(115deg, #e7f0e9 0%, #f3f5ee 58%, #f8f1e6 100%);
+  border-color: #dce6da;
+}
+.welcome-banner h2 { color: #123d32; }
+.welcome-banner p { color: #5b7567; }
+
+/* Avoid unexpected motion for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .stat-card, .course-card, .button { transition: none; }
+}
+
+/* ==========================================================
+   INTELLILMS — PROFESSIONAL CAMPUS FINISH
+   Shared data surfaces: forest green / ivory / muted gold
+   ========================================================== */
+:root {
+  --cream: #f5f4ef;
+  --surface-muted: #faf9f5;
+  --gold: #b18a4c;
+  --gold-soft: #f7f0e3;
+}
+
+/* Neutral workspace framing across every role. */
+.sidebar {
+  background: #fcfbf8;
+  border-right-color: #e0e6df;
+}
+.topbar {
+  background: #ffffff;
+  border-bottom-color: #e0e6df;
+}
+.app-footer { background: #fcfbf8; }
+.sidebar-nav-heading { color: #6b7c72; }
+.sidebar nav a.active {
+  background: #e5f1e9;
+  color: #155b43;
+}
+.sidebar nav a.active::before { background: #24765b; }
+
+/* Compact section surfaces, preserving existing grid/layout. */
+.panel,
+.course-card,
+.academic-card {
+  border-color: #dfe6df;
+  box-shadow: 0 5px 20px rgba(19, 54, 41, 0.045);
+}
+.panel-heading {
+  background: #ffffff;
+  border-bottom: 1px solid #e8eee8;
+}
+
+/* Search and filter chrome remains quiet and consistent. */
+.table-toolbar {
+  background: #ffffff;
+  border-bottom-color: #e5ebe5;
+}
+.search-box {
+  border-color: #d7e2d9;
+  background: #ffffff;
+}
+.search-box:focus-within {
+  border-color: #438a69;
+  box-shadow: 0 0 0 3px rgba(36, 118, 91, 0.12);
+}
+
+/* Shared tables, including departments, people and records. */
+th {
+  background: #edf3ee;
+  color: #355b49;
+  border-bottom: 1px solid #dbe6dc;
+  font-weight: 750;
+}
+td {
+  color: #42594d;
+  border-bottom-color: #e9eee9;
+}
+tbody tr:nth-child(even) { background: #fcfcfa; }
+tbody tr:hover { background: #f0f6f1; }
+tbody tr:focus-within { background: #f0f6f1; }
+.primary-cell { color: #183e30; }
+.pagination {
+  background: #ffffff;
+  border-top-color: #e5ebe5;
+}
+.count-badge {
+  background: #e7f2e9;
+  color: #1d684d;
+}
+
+/* Understated gold is an accent, not an alternate UI theme. */
+.page-heading .eyebrow { letter-spacing: 0.09em; }
+.stat-card { border-top: 3px solid #24765b; background: #ffffff; }
+.stat-card:nth-child(4n + 2) { border-top-color: #b18a4c; }
+.stat-card:nth-child(4n + 3) { border-top-color: #507f67; }
+.stat-card:nth-child(4n + 4) { border-top-color: #947b57; }
+.stat-card:nth-child(4n + 1) svg,
+.stat-card:nth-child(4n + 3) svg { color: #24765b; }
+.stat-card:nth-child(4n + 2) svg,
+.stat-card:nth-child(4n + 4) svg { color: #a17b41; }
+.course-art-1, .tint-0 { background: #f7efe1; color: #916e38; }
+.course-art-2, .tint-2 { background: #e8f0e9; color: #376b50; }
+.course-art-3, .tint-3 { background: #f1eee7; color: #746347; }
+.welcome-banner {
+  background: linear-gradient(115deg, #e4f0e7 0%, #f0f4ec 60%, #f7f0e2 100%);
+  border-color: #dce8dc;
+}
+.welcome-banner h2 { color: #123d32; }
+.welcome-banner p { color: #536f60; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-card, .course-card { transition: none; }
 }

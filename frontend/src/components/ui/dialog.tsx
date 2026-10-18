@@ -21,6 +21,14 @@ export function Dialog({
         <DialogPrimitive.Content
           className={`dialog-content${wide ? " dialog-wide" : ""}`}
           aria-describedby={undefined}
+          onEscapeKeyDown={(event) => {
+            const target = event.target;
+            // Let the open relation picker handle Escape before closing its form.
+            if (target instanceof HTMLElement && (
+              target.closest(".relation-modern-popover") ||
+              (target.getAttribute("aria-haspopup") === "listbox" && target.getAttribute("aria-expanded") === "true")
+            )) event.preventDefault();
+          }}
         >
           <DialogPrimitive.Title>{title}</DialogPrimitive.Title>
           <DialogPrimitive.Close

@@ -45,7 +45,8 @@ test("Super Admin can review global changes without an active institute", async 
 }) => {
   await login(page, "superadmin");
   await page.goto("/platform-settings");
-  await page.getByRole("button", { name: "Save platform settings" }).click();
+  await page.getByRole("textbox", { name: /^Notice message/ }).fill("Audit verification notice");
+  await page.getByRole("button", { name: "Save platform settings", exact: true }).click();
   await expect(
     page
       .getByRole("status")
@@ -72,6 +73,7 @@ test("teacher workload uses paginated search and student analytics hides it", as
 }) => {
   await login(page, "college.teacher");
   await page.goto("/analytics");
+  await page.getByRole("button", { name: "Teaching overview", exact: true }).click();
   const workload = page
     .locator("section")
     .filter({
@@ -89,7 +91,7 @@ test("teacher workload uses paginated search and student analytics hides it", as
   await login(page, "college.student");
   await page.goto("/analytics");
   await expect(
-    page.getByRole("heading", { name: "Academic progress" }),
+    page.getByRole("heading", { name: "My academic progress" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Instructor workload" }),

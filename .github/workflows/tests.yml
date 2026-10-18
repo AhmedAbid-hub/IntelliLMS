@@ -29,6 +29,7 @@ jobs:
       - run: python backend/manage.py check
       - run: python backend/manage.py migrate --noinput
       - run: python backend/manage.py makemigrations --check --dry-run
+      - run: cd backend && python -m ml.train --oulad
       - run: cd backend && pytest
   frontend:
     runs-on: ubuntu-latest
@@ -47,6 +48,7 @@ jobs:
         with: {node-version: '24'}
       - run: pip install -r backend/requirements.lock.txt
       - run: cd frontend && npm ci && npx playwright install --with-deps chromium
+      - run: cd backend && python -m ml.train --oulad
       - run: cd frontend && npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()

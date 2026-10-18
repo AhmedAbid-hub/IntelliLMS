@@ -1,295 +1,473 @@
+
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
-  ArrowUpRight,
   BookOpen,
   Building2,
   CalendarDays,
-  CheckCircle2,
-  ClipboardList,
+  ChevronRight,
   GraduationCap,
   Layers3,
-  LayoutGrid,
   School,
   Sparkles,
+  UsersRound,
 } from "lucide-react";
 
-import { PageHeader } from "../../components/shared";
-import { resources } from "./config";
+import { useAuth } from "../auth/Auth";
 import { useTerminology } from "../../lib/terminology";
 
-const groups = [
-  {
-    number: "01",
-    title: "Departments & Programs",
-    description:
-      "Organize departments, faculties, and academic programs.",
-    icon: Building2,
-    resources: ["units", "programs"],
-    accent: "departments",
-    hint: "Academic foundation",
-  },
-  {
-    number: "02",
-    title: "Academic Years & Terms",
-    description:
-      "Manage academic years, semesters, and terms.",
-    icon: CalendarDays,
-    resources: ["years", "terms"],
-    accent: "calendar",
-    hint: "Academic calendar",
-  },
-  {
-    number: "03",
-    title: "Classes & Sections",
-    description:
-      "Organize admission batches, cohorts, and sections.",
-    icon: GraduationCap,
-    resources: ["batches", "sections"],
-    accent: "classes",
-    hint: "Student organization",
-  },
-  {
-    number: "04",
-    title: "Course Catalog",
-    description:
-      "Manage courses, subjects, and curriculum.",
-    icon: BookOpen,
-    resources: ["courses", "curriculum"],
-    accent: "courses",
-    hint: "Teaching foundation",
-  },
-] as const;
+type AcademicLink = {
+  label: string;
+  path: string;
+};
+
+type AcademicGroup = {
+  title: string;
+  description: string;
+  path: string;
+  icon: typeof Building2;
+  color: string;
+  background: string;
+  links: AcademicLink[];
+};
 
 export function Academics() {
+  const { user } = useAuth();
   const terms = useTerminology();
 
+  const kind = user?.institute_profile?.kind;
+  const isSchool = kind === "school";
+  const isCollege = kind === "college";
+
+  const groups: AcademicGroup[] = [
+    {
+      title: isSchool
+        ? "Classes & Grades"
+        : "Departments & Programs",
+      description: isSchool
+        ? "Set up grade levels and school classes."
+        : "Add departments and organize study programs.",
+      path: "/departments-programs",
+      icon: Building2,
+      color: "#087b58",
+      background: "#e7f5ed",
+      links: isSchool
+        ? [
+            {
+              label: terms.title("programs", "Grades"),
+              path: "/programs",
+            },
+          ]
+        : [
+            {
+              label: terms.title("units", "Departments"),
+              path: "/units",
+            },
+            {
+              label: terms.title("programs", "Programs"),
+              path: "/programs",
+            },
+          ],
+    },
+    {
+      title: "Academic Calendar",
+      description: isSchool
+        ? "Manage school years and teaching terms."
+        : isCollege
+          ? "Manage academic years and annual terms."
+          : "Manage academic years and semesters.",
+      path: "/years",
+      icon: CalendarDays,
+      color: "#2563b8",
+      background: "#eaf2ff",
+      links: [
+        {
+          label: terms.title("years", "Academic years"),
+          path: "/years",
+        },
+        {
+          label: terms.title(
+            "terms",
+            isCollege ? "Annual terms" : "Semesters"
+          ),
+          path: "/terms",
+        },
+      ],
+    },
+    {
+      title: "Classes & Sections",
+      description: isSchool
+        ? "Organize class sections for your students."
+        : "Organize student batches and class sections.",
+      path: isSchool ? "/sections" : "/batches",
+      icon: UsersRound,
+      color: "#ad6b17",
+      background: "#fff3df",
+      links: [
+        ...(!isSchool
+          ? [
+              {
+                label: terms.title(
+                  "batches",
+                  "Admission batches"
+                ),
+                path: "/batches",
+              },
+            ]
+          : []),
+        {
+          label: terms.title("sections", "Sections"),
+          path: "/sections",
+        },
+      ],
+    },
+    {
+      title: "Subjects & Curriculum",
+      description:
+        "Create subjects and organize what students learn.",
+      path: "/courses",
+      icon: BookOpen,
+      color: "#8054bc",
+      background: "#f2ebff",
+      links: [
+        {
+          label: terms.title("courses", "Subjects"),
+          path: "/courses",
+        },
+        {
+          label: terms.title("curriculum", "Curriculum"),
+          path: "/curriculum",
+        },
+      ],
+    },
+  ];
+
   return (
-    <div className="academics-dashboard">
-      <PageHeader
-        title="Academic structure"
-        description="Manage your institute's academic foundation, calendar, student organization, and curriculum."
-      />
+    <div
+      className="academics-dashboard"
+      style={{
+        maxWidth: 1100,
+        margin: "0 auto",
+        paddingBottom: 28,
+      }}
+    >
+      {/* Page heading */}
 
-      {/* Motivational introduction — preserved */}
-
-      <section className="academics-intro">
-        <div className="academics-intro-content">
-          <span className="academics-eyebrow">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+          gap: 16,
+          marginBottom: 26,
+        }}
+      >
+        <div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              color: "#087b58",
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: "0.09em",
+              marginBottom: 9,
+            }}
+          >
             <School size={15} />
             ACADEMIC MANAGEMENT
-          </span>
-
-          <h2>
-            Build a well-organized
-            <span> academic institution.</span>
-          </h2>
-
-          <p>
-            Everything starts with a clear academic
-            structure. Configure your departments,
-            programs, academic calendar, classes,
-            and courses from one workspace.
-          </p>
-
-          <div className="academics-intro-actions">
-            <Link
-              className="academics-primary-link"
-              to="/institute-setup"
-            >
-              <Sparkles size={17} />
-              Open guided setup
-              <ArrowRight size={17} />
-            </Link>
-
-            <span className="academics-intro-note">
-              Your existing academic records are preserved.
-            </span>
-          </div>
-        </div>
-
-        <div
-          className="academics-intro-art"
-          aria-hidden="true"
-        >
-          <div className="academics-art-circle academics-art-circle-one" />
-          <div className="academics-art-circle academics-art-circle-two" />
-
-          <div className="academics-art-center">
-            <School size={46} strokeWidth={1.5} />
           </div>
 
-          <div className="academics-art-small academics-art-small-one">
-            <BookOpen size={21} />
-          </div>
-
-          <div className="academics-art-small academics-art-small-two">
-            <GraduationCap size={22} />
-          </div>
-
-          <div className="academics-art-small academics-art-small-three">
-            <CalendarDays size={20} />
-          </div>
-        </div>
-      </section>
-
-      {/* Academic management — compact four-card layout */}
-
-      <section
-        className="academics-management"
-        style={{ marginTop: 24 }}
-      >
-        <div
-          className="academics-section-heading"
-          style={{ marginBottom: 18 }}
-        >
-          <div>
-            <span className="academics-section-label">
-              MANAGE YOUR INSTITUTE
-            </span>
-
-            <h2>Academic management</h2>
-
-            <p>
-              Select an area to manage its academic records.
-            </p>
-          </div>
-
-          <Link
-            to="/institute-setup"
-            className="academics-text-link"
+          <h1
+            style={{
+              fontSize: "clamp(23px, 2.5vw, 30px)",
+              lineHeight: 1.2,
+              letterSpacing: "-0.035em",
+              margin: 0,
+              color: "#143e30",
+              fontWeight: 800,
+            }}
           >
-            Guided setup
-            <ArrowUpRight size={16} />
-          </Link>
-        </div>
+            What would you like to manage?
+          </h1>
 
-        <div
-          className="academics-card-grid"
-          style={{ gap: 18 }}
-        >
-          {groups.map((group) => (
-            <section
-              className={`academics-management-card academics-card-${group.accent}`}
-              key={group.title}
-              style={{
-                padding: "22px 24px",
-              }}
-            >
-              <div
-                className="academics-card-top"
-                style={{ marginBottom: 12 }}
-              >
-                <div className="academics-card-icon">
-                  <group.icon
-                    size={22}
-                    strokeWidth={1.8}
-                    aria-hidden="true"
-                  />
-                </div>
-
-                <span className="academics-card-number">
-                  {group.number} / 04
-                </span>
-              </div>
-
-              <div
-                className="academics-card-content"
-                style={{ marginBottom: 16 }}
-              >
-                <span className="academics-card-category">
-                  {group.hint}
-                </span>
-
-                <h3>{group.title}</h3>
-
-                <p>{group.description}</p>
-              </div>
-
-              <div className="academics-card-links">
-                {group.resources.map((key) => {
-                  const resource = resources[key];
-
-                  return (
-                    <Link
-                      className="academics-resource-item"
-                      to={`/${key}`}
-                      key={key}
-                    >
-                      <div className="academics-resource-symbol">
-                        {key === "units" ? (
-                          <Building2 size={17} />
-                        ) : key === "programs" ? (
-                          <GraduationCap size={17} />
-                        ) : key === "years" ? (
-                          <CalendarDays size={17} />
-                        ) : key === "terms" ? (
-                          <Layers3 size={17} />
-                        ) : key === "batches" ? (
-                          <ClipboardList size={17} />
-                        ) : key === "sections" ? (
-                          <LayoutGrid size={17} />
-                        ) : key === "courses" ? (
-                          <BookOpen size={17} />
-                        ) : (
-                          <CheckCircle2 size={17} />
-                        )}
-                      </div>
-
-                      <div className="academics-resource-text">
-                        <strong>
-                          {terms.title(
-                            key,
-                            resource.title
-                          )}
-                        </strong>
-
-                        <small>
-                          {resource.description}
-                        </small>
-                      </div>
-
-                      <ArrowUpRight
-                        size={18}
-                        className="academics-resource-arrow"
-                        aria-hidden="true"
-                      />
-                    </Link>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-        </div>
-      </section>
-
-      {/* Next workflow — preserved */}
-
-      <section className="academics-next">
-        <div className="academics-next-icon">
-          <BookOpen size={23} />
-        </div>
-
-        <div className="academics-next-content">
-          <span>READY FOR THE NEXT STEP?</span>
-
-          <h3>Move from structure to teaching</h3>
-
-          <p>
-            Once your academic structure is configured,
-            organize course offerings, teaching assignments,
-            and student enrollments.
+          <p
+            style={{
+              color: "#72827b",
+              fontSize: 14,
+              lineHeight: 1.7,
+              margin: "9px 0 0",
+            }}
+          >
+            Choose an area below to organize your institute.
           </p>
         </div>
 
         <Link
-          to="/offerings"
-          className="academics-next-button"
+          to="/institute-setup"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "11px 15px",
+            borderRadius: 11,
+            background: "#e6f4ec",
+            color: "#086d4e",
+            fontSize: 13,
+            fontWeight: 700,
+            textDecoration: "none",
+            border: "1px solid #d1e9d9",
+          }}
         >
-          Courses & Enrollments
-          <ArrowRight size={17} />
+          <Sparkles size={16} />
+          Guided setup
+          <ArrowRight size={15} />
         </Link>
-      </section>
+      </div>
+
+      {/* Academic management rows */}
+
+      <div
+        style={{
+          background: "#ffffff",
+          border: "1px solid #e0eae3",
+          borderRadius: 18,
+          boxShadow: "0 5px 24px rgba(25, 62, 42, 0.035)",
+          overflow: "hidden",
+        }}
+      >
+        {groups.map((group, index) => {
+          const Icon = group.icon;
+
+          return (
+            <div
+              key={group.title}
+              style={{
+                borderBottom:
+                  index === groups.length - 1
+                    ? "none"
+                    : "1px solid #edf1ed",
+                padding: "19px 22px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 16,
+                }}
+              >
+                <Link
+                  to={group.path}
+                  aria-label={`Open ${group.title}`}
+                  style={{
+                    width: 52,
+                    height: 52,
+                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: group.background,
+                    color: group.color,
+                    borderRadius: 13,
+                    textDecoration: "none",
+                  }}
+                >
+                  <Icon size={23} strokeWidth={1.9} />
+                </Link>
+
+                <div
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  <Link
+                    to={group.path}
+                    style={{
+                      color: "#163e31",
+                      fontSize: 16,
+                      fontWeight: 750,
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    {group.title}
+                    <ChevronRight
+                      size={16}
+                      color={group.color}
+                    />
+                  </Link>
+
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: "#72827b",
+                      margin: "5px 0 0",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {group.description}
+                  </p>
+                </div>
+
+                <Link
+                  to={group.path}
+                  aria-label={`Manage ${group.title}`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 34,
+                    height: 34,
+                    borderRadius: 9,
+                    background: "#f5f8f5",
+                    color: "#587267",
+                    textDecoration: "none",
+                    flexShrink: 0,
+                  }}
+                >
+                  <ArrowRight size={18} />
+                </Link>
+              </div>
+
+              {/* Direct shortcuts to existing pages */}
+
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  marginTop: 13,
+                  marginLeft: 68,
+                }}
+              >
+                {group.links.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      padding: "6px 11px",
+                      borderRadius: 8,
+                      background: "#f7f9f7",
+                      border: "1px solid #e7ede8",
+                      color: "#486357",
+                      textDecoration: "none",
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {item.label}
+                    <ChevronRight size={13} />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Course offerings shortcut */}
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          justifyContent: "space-between",
+          gap: 16,
+          marginTop: 20,
+          padding: "17px 20px",
+          background: "#f0f7f2",
+          border: "1px solid #dbeadf",
+          borderRadius: 14,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: "#dcefe3",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#087b58",
+            }}
+          >
+            <Layers3 size={20} />
+          </div>
+
+          <div>
+            <strong
+              style={{
+                display: "block",
+                fontSize: 14,
+                color: "#184735",
+              }}
+            >
+              Ready to start teaching?
+            </strong>
+
+            <span
+              style={{
+                display: "block",
+                fontSize: 12,
+                color: "#688076",
+                marginTop: 4,
+              }}
+            >
+              Set up courses for the current academic term.
+            </span>
+          </div>
+        </div>
+
+        <Link
+          to="/offerings"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+            color: "#086d4e",
+            fontWeight: 750,
+            fontSize: 13,
+            textDecoration: "none",
+          }}
+        >
+          Course offerings
+          <ArrowRight size={16} />
+        </Link>
+      </div>
+
+      {/* Bottom guidance */}
+
+      <div
+        style={{
+          marginTop: 18,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          color: "#819188",
+          fontSize: 12,
+        }}
+      >
+        <GraduationCap size={16} />
+        Your existing academic records are preserved.
+      </div>
     </div>
   );
 }

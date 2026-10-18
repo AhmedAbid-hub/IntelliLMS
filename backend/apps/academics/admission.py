@@ -17,9 +17,12 @@ from apps.accounts.invitations import send_invitation
 from apps.insights.models import Audit
 from .models import Program, AdmissionBatch, Section, Year, Term, Offering, Enrollment, CurriculumItem, StudentPlacement, AdmissionReceipt
 from .serializers import serializer_for
+from .eligibility import validate_course_selection, validate_retained_enrollments
 
 
 class PlacementInput(serializers.Serializer):
+    stage = serializers.IntegerField(min_value=1, max_value=40, default=1)
+    term = serializers.UUIDField(required=False, allow_null=True, default=None)
     program = serializers.UUIDField()
     batch = serializers.UUIDField(required=False, allow_null=True, default=None)
     year = serializers.UUIDField()
@@ -72,6 +75,14 @@ def validate_placement(scope, values):
     batch=related(AdmissionBatch,"batch",active=True)
     year=related(Year,"year")
     section=related(Section,"section",active=True)
+    term=related(Term,"term")
+    stage=values.get("stage",1)
+    if stage > program.duration_terms:
+        raise ValidationError({"stage":"Stage exceeds the configured class/program duration."})
+    if term and (term.year_id != year.pk or term.status == "closed" or term.period_type and term.period_type != program.structure):
+        raise ValidationError({"term":"Choose an open compatible period in the selected academic year."})
+    if scope.institute.kind == "school" and (batch or program.unit_id):
+        raise ValidationError("School admission requires a class without departments or batches. Legacy placements remain in history.")
     if batch and (batch.program_id != program.pk or year.start < batch.year.start):
         raise ValidationError({"batch":"Batch must belong to the program and cannot start after the selected academic year."})
     if section and (section.program_id != program.pk or section.batch_id and section.batch_id != getattr(batch,"pk",None)):
@@ -82,20 +93,25 @@ def validate_placement(scope, values):
     courses=list(Offering.objects.filter(institute=scope.institute,pk__in=ids,archived=False,course__active=True,term__year=year).exclude(term__status="closed").select_related("course","term","section"))
     if len(courses)!=len(ids):
         raise ValidationError({"offerings":"Every offering must be active in this institute and academic year."})
+    validate_course_selection(courses)
     for course in courses:
+        if course.term.period_type and course.term.period_type != program.structure:
+            raise ValidationError({"offerings": "Selected offerings must use periods compatible with this class/program."})
+        if term and course.term_id != term.pk:
+            raise ValidationError({"offerings":"Selected offerings must belong to the placement period."})
         if course.section_id and course.section_id != getattr(section,"pk",None):
             raise ValidationError({"offerings":"Select offerings for the student's section, or a shared offering without a section."})
         if course.course.unit_id and program.unit_id != course.course.unit_id:
             # A curriculum can deliberately include a shared subject from another department.
             if not CurriculumItem.objects.filter(institute=scope.institute,program=program,course=course.course,active=True).exists():
                 raise ValidationError({"offerings":"A cross-department subject must be part of this program's curriculum."})
-    return dict(program=program,batch=batch,year=year,section=section),courses
+    return dict(program=program,batch=batch,year=year,section=section,stage=stage,term=term),courses
 
 
 def result(values, placement, courses, member=None, replayed=False):
     return dict(preview=values["preview"],membership=str(member.pk) if member else None,replayed=replayed,
         identity={key:values[key] for key in ["username","email","first_name","last_name","student_identifier"]},
-        placement={key:getattr(value,"name",None) for key,value in placement.items()},
+        placement={key:str(value) if key == "stage" and value is not None else getattr(value,"name",None) for key,value in placement.items()},
         offerings=[dict(id=str(course.pk),title=course.title) for course in courses],
         invitation="View the saved membership's Invitation action for transport status." if member else "A 48-hour password-setup invitation will be sent after successful creation.")
 
@@ -113,7 +129,7 @@ def admit_student(request):
         if receipt.digest!=digest:
             raise ValidationError("This submission key was already used for different admission details. Start a new admission.")
         saved=receipt.membership.placements.order_by("created_at").first()
-        placement={key:getattr(saved,key) for key in ["program","batch","year","section"]}
+        placement={key:getattr(saved,key) for key in ["program","batch","year","section","stage","term"]}
         courses=list(Offering.objects.filter(institute=scope.institute,pk__in=values["offerings"]))
         return Response(result(values,placement,courses,receipt.membership,True))
     placement,courses=validate_placement(scope,values)
@@ -135,7 +151,7 @@ def admit_student(request):
     Audit.objects.create(institute=scope.institute,actor=request.user,action="Student.admit",object_id=str(member.pk),detail={"placement":str(placed.pk),"offerings":[str(course.pk) for course in courses]})
     from apps.learning.notifications import notify_event
     notify_event(scope.institute,[user.pk],"Welcome to your learning workspace",f"Your student admission and {len(courses)} course enrollments are saved.",event_key=f"admission:{member.pk}",destination="/offerings")
-    transaction.on_commit(lambda:send_invitation(user))
+    send_invitation(user)
     return Response(result(values,placement,courses,member),status=201)
 
 
@@ -174,7 +190,7 @@ class PlacementHistory(generics.ListAPIView):
         if scope.role=="superadmin":raise PermissionDenied()
         people=Membership.objects.filter(institute=scope.institute) if scope.role=="admin" else scope.people()
         member=get_object_or_404(people,pk=self.kwargs["pk"],role="student")
-        return StudentPlacement.objects.filter(institute=scope.institute,membership=member).select_related("program","batch","year","section").order_by("-created_at")
+        return StudentPlacement.objects.filter(institute=scope.institute,membership=member).select_related("program","batch","year","section","term").order_by("-created_at")
 
 
 @extend_schema(request=TransferInput,responses=serializer_for(StudentPlacement))
@@ -189,10 +205,12 @@ def transfer_student(request,pk):
     withdrawn=Enrollment.objects.filter(institute=scope.institute,student=member.user,offering_id__in=values["withdraw"],offering__archived=False,active=True)
     if withdrawn.count()!=len(set(values["withdraw"])) or set(values["withdraw"]) & set(values["offerings"]):
         raise ValidationError("Withdraw only this student's current active-course enrollments; do not also select them for enrollment.")
+    validate_retained_enrollments(scope, member.user, courses, withdrawn)
     previous=member.placements.filter(ended_at__isnull=True).first()
     if not previous and member.section_id:
         previous=StudentPlacement.objects.create(institute=scope.institute,membership=member,program=member.section.program,batch=member.section.batch,section=member.section,reason="Preserved legacy placement before transfer",actor=request.user)
-    if previous:previous.ended_at=timezone.now();previous.save(update_fields=["ended_at"])
+    if previous:
+        previous.ended_at=timezone.now();previous.end_reason="transfer";previous.save(update_fields=["ended_at","end_reason"])
     current=StudentPlacement.objects.create(institute=scope.institute,membership=member,actor=request.user,reason=values["reason"],**placement)
     member.section=placement["section"];member.unit=placement["program"].unit;member.save(update_fields=["section","unit"])
     withdrawn.update(active=False)

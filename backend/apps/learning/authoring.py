@@ -54,6 +54,8 @@ class QuizAuthoringActions:
         quiz = get_object_or_404(self.get_queryset().select_for_update(), pk=pk)
         self.check_object_permissions(self.request, quiz)
         self.scope.check_offering(quiz.offering, write=True)
+        from .views import require_assigned_instructor
+        require_assigned_instructor(self.scope, self.request.user, quiz.offering)
         if editable and quiz.attempt_set.exists():
             raise ValidationError('Questions are locked after attempts begin. Duplicate the quiz to author a new version.')
         return quiz

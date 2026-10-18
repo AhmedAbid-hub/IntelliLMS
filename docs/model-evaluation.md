@@ -1,28 +1,39 @@
-# Model evaluation report
+# Real-data model evaluation — 15 October 2026
 
-**DEMO — SYNTHETIC DATA — NOT VALIDATED FOR REAL STUDENT USE.**
+Model `oulad-a90f43b47bbf0041`; schema `oulad-tma-sequence-v1`; scikit-learn 1.9.1. Dataset: [OULAD v1](https://doi.org/10.6084/m9.figshare.5081998.v1), CC BY 4.0. **External public-data evaluation only; not validated on IntelliLMS students.** [Methods, timing assumptions and reproduction](ml-methodology.md).
 
-Executed locally on 10 October 2026 with Python 3.12 and the pinned dependency environment. Reproduce using `python -m ml.train --demo` from backend. Machine-readable output is `backend/ml/artifacts/demo-1ebe68e4d646.json` and the chart is `backend/ml/artifacts/confusion-matrix.png`.
+50,815 chronological assignment sequences / 18,136 students; 3,098 outcomes below 40%. Training/validation/test rows: 30,485 / 10,176 / 10,154. Student identities are disjoint. Two input percentages predict whether the next submitted assignment scores below 40%; withdrawal and non-submission are outside this target.
 
-Dataset: 1,200 simulated rows, 600 synthetic groups; 720 training / 240 validation / 240 test rows. Student groups are disjoint across subsets.
+| Candidate | Validation threshold | F1 | Precision | Recall | ROC-AUC | Brier |
+|---|---:|---:|---:|---:|---:|---:|
+| prevalence_baseline | 0.05 | 0.1187 | 0.0631 | 1.0000 | 0.5000 | 0.0591 |
+| logistic_regression | 0.22 | 0.3852 | 0.3990 | 0.3723 | 0.8148 | 0.0502 |
+| random_forest | 0.19 | 0.3908 | 0.3540 | 0.4361 | 0.8222 | 0.0495 |
+| gradient_boosting | 0.20 | 0.3932 | 0.3591 | 0.4346 | 0.8223 | 0.0493 |
 
-| Model | Validation F1 | Validation ROC-AUC | Validation Brier |
-|---|---:|---:|---:|
-| Logistic Regression | 0.8023 | 0.9141 | 0.1137 |
-| Random Forest | 0.7674 | 0.9085 | 0.1183 |
-| HistGradientBoosting | 0.6951 | 0.8728 | 0.1473 |
+Histogram gradient boosting won validation F1 (0.3932), with 100 iterations, at most seven leaves, minimum 40 samples per leaf and L2 regularization 1. It was refit on training+validation; the decision threshold remains **0.20**, selected without test outcomes. Display bands are low <0.20, moderate 0.20–<0.40 and high ≥0.40; these are experimental support bands, not validated intervention cutoffs.
 
-Logistic Regression was selected using validation F1, then refit on training+validation. Held-out test results:
-
-| Metric | Value |
+| Held-out metric | Measured value |
 |---|---:|
-| Accuracy | 0.8292 |
-| Precision | 0.7327 |
-| Recall | 0.8409 |
-| F1 | 0.7831 |
-| ROC-AUC | 0.9211 |
-| Brier score | 0.1180 |
+| accuracy | 0.919933 |
+| precision | 0.335320 |
+| recall | 0.380068 |
+| f1 | 0.356295 |
+| roc_auc | 0.821488 |
+| brier_score | 0.047016 |
+| average_precision | 0.305571 |
 
-Confusion matrix at 0.5: true negatives 125, false positives 27, false negatives 14, true positives 74. Operational display categories use different thresholds (0.35 and 0.65), so these binary test metrics do not validate those categories.
+Confusion matrix on 10,154 held-out examples (positive = score below 40):
 
-These values measure how well models recover the synthetic generator's relationships. They provide no evidence of real-world educational predictive validity. No fairness assessment, external validation, confidence intervals, or institution-specific calibration was performed. Demographic attributes are absent; that alone does not establish fairness.
+| Actual / predicted | At least 40 | Below 40 |
+|---|---:|---:|
+| At least 40 | 9,116 | 446 |
+| Below 40 | 367 | 225 |
+
+**Interpretation:** 225 of 592 below-40 outcomes are detected (38.01% recall), while 446 of 671 alerts are false positives (33.53% precision). This is limited performance, suitable for an explicitly experimental demonstration, not a reliable academic decision system. The 91.99% accuracy is lower than an always-negative majority classifier's 94.17%; that majority baseline detects none of the low-score cases (F1=0). The validation-tuned prevalence baseline predicts every case positive on test, yielding F1=0.1102, precision=0.0583 and recall=1. The selected model's test F1=0.3563 exceeds both baselines; ROC-AUC=0.8215 and average precision=0.3056 measure ranking, not local validity.
+
+Brier=0.0470 versus the prevalence baseline's 0.0549 is probability-error evidence on this source; it is not proof of calibration at a new institute. Neither school/college transfers, a new university, demographic subgroups nor contemporary cohorts have been validated. No confidence intervals, prospective utility study or score-release-time reconstruction is claimed. Known future submissions/deadlines are excluded; missing marking-release timestamps remain a source limitation. Metrics are example-weighted; students with more submissions contribute more examples within their partition.
+
+An eligibility audit found 37 of the 50,815 source examples have an input cutoff on/after the target deadline but strictly before the target submission. These late-submission windows remain in the reported experiment; live inference's future-deadline gate excludes that operational situation. See the methodology for this eligibility difference. No model or threshold was changed after inspecting these results.
+
+Machine-readable provenance and all measured metrics are in `backend/ml/artifacts/metadata.json` and the version-named JSON. The version-named confusion-matrix PNG is generated by training. Old `demo-*` metadata remains historical synthetic evidence and is not compared as though it measured this outcome/population.

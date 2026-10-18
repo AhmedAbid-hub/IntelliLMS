@@ -346,7 +346,7 @@ function buildPlatformStats(
       description:
         administrators === undefined
           ? "Count not available from the platform API"
-          : "Administrative accounts across institutions",
+          : "Distinct active administrators in active institutions",
       icon: ShieldCheck,
     },
   ];

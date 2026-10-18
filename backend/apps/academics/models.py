@@ -30,6 +30,7 @@ class Year(TenantModel):
 
 
 class Term(TenantModel):
+    period_type = models.CharField(max_length=12, blank=True, default="", choices=[("", "Legacy / unspecified"), ("annual", "Annual"), ("semester", "Semester")])
     status = models.CharField(max_length=12, choices=[("planned", "Planned"), ("active", "Active"), ("closed", "Closed")], default="planned")
     name = models.CharField(max_length=80)
     year = models.ForeignKey(Year, on_delete=models.PROTECT)
@@ -191,6 +192,9 @@ class CurriculumItem(TenantModel):
 
 
 class StudentPlacement(TenantModel):
+    stage = models.PositiveSmallIntegerField(null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(40)])
+    term = models.ForeignKey(Term, null=True, blank=True, on_delete=models.PROTECT)
+    end_reason = models.CharField(max_length=12, blank=True, default="", choices=[("", "Not recorded"), ("transfer", "Transferred"), ("progress", "Progressed"), ("repeat", "Repeated"), ("correct", "Corrected"), ("withdraw", "Withdrawn"), ("complete", "Completed"), ("graduate", "Graduated")])
     membership = models.ForeignKey("accounts.Membership", on_delete=models.PROTECT, related_name="placements")
     program = models.ForeignKey(Program, on_delete=models.PROTECT)
     batch = models.ForeignKey(AdmissionBatch, null=True, blank=True, on_delete=models.PROTECT)
@@ -211,3 +215,13 @@ class AdmissionReceipt(TenantModel):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["institute", "key"], name="unique_admission_request")]
+
+
+class ProgressionDecision(TenantModel):
+    membership = models.ForeignKey("accounts.Membership", on_delete=models.PROTECT)
+    previous = models.OneToOneField(StudentPlacement, on_delete=models.PROTECT, related_name="decision")
+    placement = models.ForeignKey(StudentPlacement, null=True, blank=True, on_delete=models.PROTECT, related_name="entry_decisions")
+    operation = models.CharField(max_length=12, choices=[("progress", "Progress"), ("repeat", "Repeat"), ("correct", "Correct placement"), ("withdraw", "Withdraw"), ("complete", "Complete"), ("graduate", "Graduate")])
+    reason = models.CharField(max_length=1000)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+    evidence = models.JSONField(default=dict)

@@ -4,6 +4,7 @@ from django.db.models import Q
 from rest_framework import serializers
 from apps.accounts.models import Membership
 from apps.accounts.scope import Scope
+from apps.accounts.institution import academic_config, validate_structure
 from .models import (
     AdmissionBatch,
     CurriculumItem,
@@ -16,6 +17,7 @@ from .models import (
     Offering,
     Enrollment,
     Timetable,
+    StudentPlacement,
 )
 
 
@@ -42,6 +44,13 @@ class TenantSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         scope = Scope(self.context["request"])
+        # Platform invitations target the institute authorized by the view,
+        # which need not be the platform user's currently selected institute.
+        institute = scope.institute
+        if self.Meta.model == Membership and scope.role == "superadmin":
+            institute = self.context.get("membership_institute") or getattr(self.instance, "institute", None)
+        if institute is None:
+            raise serializers.ValidationError("Select an active institute.")
 
         def value(key, default=None):
             return attrs.get(key, getattr(self.instance, key, default))
@@ -51,7 +60,7 @@ class TenantSerializer(serializers.ModelSerializer):
             for item in values:
                 if (
                     hasattr(item, "institute_id")
-                    and item.institute_id != scope.institute.id
+                    and item.institute_id != institute.id
                 ):
                     raise serializers.ValidationError(
                         {key: "Related record must belong to the selected institute."}
@@ -60,6 +69,7 @@ class TenantSerializer(serializers.ModelSerializer):
         if offering:
             scope.check_offering(offering, write=True)
         model = self.Meta.model
+        validate_structure(institute, model.__name__, attrs, self.instance)
         if model in [AdmissionBatch, CurriculumItem, Section]:
             program = value("program")
             if not self.instance and not program.active:
@@ -72,13 +82,19 @@ class TenantSerializer(serializers.ModelSerializer):
             if not self.instance and not value("course").active:
                 raise serializers.ValidationError({"course": "Choose an active subject."})
         if model == Program and self.instance and "duration_terms" in attrs:
-            if self.instance.curriculumitem_set.filter(stage__gt=value("duration_terms")).exists():
+            if self.instance.curriculumitem_set.filter(stage__gt=value("duration_terms")).exists() or StudentPlacement.objects.filter(program=self.instance, stage__gt=value("duration_terms")).exists():
                 raise serializers.ValidationError({"duration_terms": "Existing curriculum stages exceed this duration. Preserve the duration or create a new program."})
+        if model == Program and self.instance and "structure" in attrs and attrs["structure"] != self.instance.structure:
+            if (self.instance.curriculumitem_set.exists() or StudentPlacement.objects.filter(program=self.instance).exists()
+                    or Offering.objects.filter(section__program=self.instance).exists()):
+                raise serializers.ValidationError({"structure": "Preserve the academic structure of programs with curriculum, placements or offerings. Create a new program instead."})
         if model == Offering and not self.instance:
             if not value("course").active or value("term").status == "closed":
                 raise serializers.ValidationError("New offerings require an active subject and a non-closed term.")
             if value("section") and (not value("section").active or not value("section").program.active):
                 raise serializers.ValidationError("New offerings require an active section and program.")
+            if value("section") and value("term").period_type and value("section").program.structure != value("term").period_type:
+                raise serializers.ValidationError({"term": "Period type must match the section's program structure."})
         if model == Offering:
             reason = attrs.pop("assignment_reason", "").strip()
             self.assignment_reason = reason
@@ -87,7 +103,7 @@ class TenantSerializer(serializers.ModelSerializer):
                 changed = previous != {teacher.pk for teacher in attrs["teachers"]}
                 if changed and self.instance and self.instance.archived:
                     raise serializers.ValidationError("Unarchive the course before changing teaching assignments.")
-                if changed and scope.role == "admin" and not self.context.get("lifecycle_reassignment") and len(reason) < 5:
+                if changed and scope.role == "admin" and not academic_config(scope.institute)["direct_teacher_assignment"] and not self.context.get("lifecycle_reassignment") and len(reason) < 5:
                     raise serializers.ValidationError({"assignment_reason": "Department Heads own teacher assignments. An administrative override requires a reason of at least five characters."})
         if (
             model == Program
@@ -112,6 +128,14 @@ class TenantSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     "Academic unit is outside your department."
                 )
+        if model == Term:
+            expected_type = academic_config(scope.institute)["structure"]
+            if not self.instance:
+                attrs.setdefault("period_type", expected_type)
+            if "period_type" in attrs and attrs["period_type"] != expected_type and (not self.instance or attrs["period_type"] != self.instance.period_type):
+                raise serializers.ValidationError({"period_type": "Period type must match this institute's academic structure."})
+            if self.instance and "period_type" in attrs and attrs["period_type"] != self.instance.period_type and (self.instance.offering_set.exists() or StudentPlacement.objects.filter(term=self.instance).exists()):
+                raise serializers.ValidationError({"period_type": "Preserve the type of periods with existing offerings."})
         if model in [Year, Term]:
             if value("start") > value("end"):
                 raise serializers.ValidationError("End date must follow start date.")
@@ -135,6 +159,11 @@ class TenantSerializer(serializers.ModelSerializer):
                     "Existing terms must remain within the academic year."
                 )
             if model == Term and self.instance and {"start", "end"} & attrs.keys():
+                from apps.learning.models import AttendanceSession
+                if AttendanceSession.objects.filter(offering__term=self.instance).filter(
+                    Q(date__lt=value("start")) | Q(date__gt=value("end"))
+                ).exists():
+                    raise serializers.ValidationError("Existing attendance sessions must remain within their academic period.")
                 for meeting in Timetable.objects.filter(
                     offering__term=self.instance
                 ).select_related("offering"):
@@ -189,6 +218,8 @@ class TenantSerializer(serializers.ModelSerializer):
                 memberships = Membership.objects.filter(
                     user=teacher, institute=scope.institute, active=True, user__is_active=True
                 ).filter(Q(role="teacher") | Q(role="head", can_teach=True))
+                if scope.institute.kind == "school":
+                    memberships = memberships.filter(role="teacher")
                 if scope.role == "head":
                     memberships = memberships.filter(appointments__unit_id=scope.membership.unit_id, appointments__active=True)
                 if not memberships.exists():

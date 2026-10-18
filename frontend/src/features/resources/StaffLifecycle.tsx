@@ -7,6 +7,7 @@ import { Dialog } from "../../components/ui/dialog";
 import { Button } from "../../components/ui/button";
 import { RelationSelect } from "../../components/RelationSelect";
 import { ErrorState, Loading } from "../../components/shared";
+import { useInstitution } from "../../lib/institution";
 import { useAuth } from "../auth/Auth";
 import { notifySaved } from "../../components/ToastProvider";
 
@@ -22,6 +23,7 @@ export function StaffLifecycle({
   onOpen,
 }: StaffLifecycleProps) {
   const { role, user } = useAuth();
+  const institution = useInstitution();
 
   const [open, setOpen] = useState(false);
   const [operation, setOperation] = useState(
@@ -168,7 +170,7 @@ export function StaffLifecycle({
                           ...(operation === "change_role"
                             ? {
                                 role: nextRole,
-                                unit: unit || null,
+                                unit: institution.departments ? unit || null : null,
                                 can_teach: canTeach,
                               }
                             : {}),
@@ -211,7 +213,7 @@ export function StaffLifecycle({
                       </option>
                     )}
 
-                  {row.role === "head" && !!row.active && (
+                  {institution.departments && row.role === "head" && !!row.active && (
                     <option value="replace_head">
                       Replace Department Head
                     </option>
@@ -228,7 +230,7 @@ export function StaffLifecycle({
                       onChange={(e) => setNextRole(e.target.value)}
                     >
                       <option value="teacher">Teacher</option>
-                      <option value="head">Department Head</option>
+                      {institution.departments && <option value="head">Department Head</option>}
 
                       {role === "superadmin" && (
                         <option value="admin">
@@ -238,12 +240,12 @@ export function StaffLifecycle({
                     </select>
                   </label>
 
-                  <RelationSelect
+                  {institution.departments && <RelationSelect
                     label="Department"
                     source="units"
                     value={unit}
                     onChange={(v) => setUnit(String(v))}
-                  />
+                  />}
 
                   {nextRole === "head" && (
                     <label className="checkbox-label">

@@ -55,7 +55,7 @@ from .models import (
 
 from .serializers import LearningSerializer, validate_upload
 from .history import grade_history
-from .governance import require_unfinalized
+from .governance import assigned_instructor, require_unfinalized
 from .authoring import QuizAuthoringActions
 from .roster import (
     AttendanceHistorySerializer,
@@ -90,7 +90,7 @@ def require_assigned_instructor(scope, user, offering):
     scope.require("head", "teacher")
     scope.check_offering(offering, write=True)
 
-    if not offering.teachers.filter(pk=user.pk).exists():
+    if not assigned_instructor(scope, offering):
         raise PermissionDenied(
             "Only assigned instructors can manage this assessment."
         )
@@ -102,10 +102,27 @@ class LearningViewSet(TenantViewSet):
     filterset_fields = ["offering"]
     search_fields = ["title"]
 
+    def require_teaching_write(self, values):
+        if self.model == Announcement:
+            return  # Scoped department/institute announcements are management work.
+        related = values
+        for part in self.offering_path.split("__"):
+            related = related.get(part) if isinstance(related, dict) else getattr(related, part)
+        require_assigned_instructor(self.scope, self.request.user, related)
+
+    def perform_create(self, serializer):
+        self.require_teaching_write(serializer.validated_data)
+        super().perform_create(serializer)
+
+    def perform_update(self, serializer):
+        self.require_teaching_write(serializer.instance)
+        super().perform_update(serializer)
+
     def get_serializer_class(self):
         return serializer_for(self.model, LearningSerializer)
 
     def perform_destroy(self, instance):
+        self.require_teaching_write(instance)
         if getattr(instance, "finalized", False):
             require_unfinalized(instance)
 
@@ -602,6 +619,13 @@ class SubmissionViewSet(TenantViewSet):
 class QuizViewSet(QuizAuthoringActions, LearningViewSet):
     model = Quiz
 
+    def perform_create(self, serializer):
+        if serializer.validated_data.get("released"):
+            require_assigned_instructor(
+                self.scope, self.request.user, serializer.validated_data["offering"]
+            )
+        super().perform_create(serializer)
+
     @transaction.atomic
     def perform_update(self, serializer):
         serializer.instance = get_object_or_404(
@@ -613,6 +637,14 @@ class QuizViewSet(QuizAuthoringActions, LearningViewSet):
         serializer.validate(serializer.validated_data)
 
         was_released = serializer.instance.released
+
+        if was_released and self.scope.institute.grading_rules.get("lock_released_grades", False) and serializer.validated_data.get("released") is False:
+            raise ValidationError("Institute policy protects released quiz results. Use audited attempt corrections instead of withdrawing release to edit marks.")
+
+        if "released" in serializer.validated_data:
+            require_assigned_instructor(
+                self.scope, self.request.user, serializer.instance.offering
+            )
 
         super().perform_update(serializer)
 
@@ -1220,6 +1252,8 @@ class AttendanceSessionViewSet(LearningViewSet):
 
         require_unfinalized(session)
 
+        require_assigned_instructor(self.scope, self.request.user, session.offering)
+
         records = payload(
             AttendanceInput,
             request.data,
@@ -1522,6 +1556,7 @@ class NotificationViewSet(TenantViewSet):
 
 class ManualGradeViewSet(LearningViewSet):
     model = ManualGrade
+    write_roles = ("head", "teacher")
 
     filterset_fields = [
         "offering",
@@ -1550,6 +1585,9 @@ class ManualGradeViewSet(LearningViewSet):
 
     @transaction.atomic
     def perform_create(self, serializer):
+        require_assigned_instructor(
+            self.scope, self.request.user, serializer.validated_data["offering"]
+        )
         super().perform_create(serializer)
 
         obj = serializer.instance
@@ -1599,6 +1637,9 @@ class ManualGradeViewSet(LearningViewSet):
             institute=self.scope.institute,
         )
 
+        require_assigned_instructor(
+            self.scope, self.request.user, serializer.instance.offering
+        )
         require_unfinalized(serializer.instance)
 
         previous = {
@@ -1639,7 +1680,7 @@ class ManualGradeViewSet(LearningViewSet):
 class BankQuestionViewSet(TenantViewSet):
     model = BankQuestion
 
-    write_roles = ("admin", "head", "teacher")
+    write_roles = ("teacher",)
 
     search_fields = ["prompt"]
     filterset_fields = ["kind", "unit"]
@@ -1655,11 +1696,8 @@ class BankQuestionViewSet(TenantViewSet):
         if getattr(self, "swagger_fake_view", False):
             return self.model.objects.none()
 
-        self.scope.require(
-            "admin",
-            "head",
-            "teacher",
-        )
+        if self.scope.role not in ("admin", "head", "teacher"):
+            raise PermissionDenied("Question banks are available to institute academic staff only.")
 
         qs = super().get_queryset()
 
@@ -1681,6 +1719,9 @@ class BankQuestionViewSet(TenantViewSet):
     @transaction.atomic
     def perform_create(self, serializer):
         self.scope.require(*self.write_roles)
+
+        if self.scope.role != "teacher":
+            raise PermissionDenied("Use your authorized teaching workspace to author questions.")
 
         extra = (
             {
@@ -1756,6 +1797,8 @@ class BankQuestionViewSet(TenantViewSet):
         )
 
         serializer.validated_data["quiz"] = quiz
+
+        require_assigned_instructor(self.scope, self.request.user, quiz.offering)
 
         serializer.validate(
             serializer.validated_data

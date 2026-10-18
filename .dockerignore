@@ -7,5 +7,7 @@ frontend/test-results
 backend/*.sqlite3
 backend/private-media
 backend/staticfiles
+backend/ml/data
+backend/test-results
 **/__pycache__
 **/.pytest_cache

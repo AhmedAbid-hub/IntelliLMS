@@ -29,7 +29,7 @@ def test_invitation_resend_invalidates_previous_and_accepts_once(world,client_fo
     user=User.objects.get(pk=created.data["user"])
     assert not user.has_usable_password() and user.last_name == "Example"
     old=link(mail.outbox[-1]); url=f'/api/v1/memberships/{created.data["id"]}/'
-    assert admin.get(url).data["invitation"]["email_status"] == "sent"
+    assert admin.get(url).data["invitation"]["email_status"] == "local"
     assert (user.invitation.expires_at-user.invitation.issued_at).total_seconds()==48*3600
     assert client_for(world["a"],"teacher").post(url+"resend-invitation/").status_code == 403
     assert client_for(world["b"],"admin").post(url+"resend-invitation/").status_code == 404
@@ -80,6 +80,6 @@ def test_reset_30m_expiry_and_failed_delivery_visible(world,client_for,django_ca
     with patch("apps.accounts.auth.send_mail",return_value=1):
         with django_capture_on_commit_callbacks(execute=True):
             assert admin.post(url+"resend-invitation/").status_code==200
-    assert admin.get(url).data["invitation"]["email_status"]=="sent"
+    assert admin.get(url).data["invitation"]["email_status"]=="local"
     assert anonymous.post("/api/v1/auth/password-confirm/",body,format="json").status_code==200
     cache.clear()

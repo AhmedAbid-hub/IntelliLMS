@@ -20,9 +20,9 @@ const defaults: Record<string, [string, string]> = {
 export function terminologyPreset(kind: string): Record<string, string> {
   const pairs = { ...defaults, ...(kind === "school" ? {
     unit: ["Subject area", "Subject areas"], program: ["Grade level", "Grade levels"],
-    section: ["Class", "Classes"], course: ["Subject", "Subjects"], offering: ["Subject class", "Subject classes"],
+    section: ["Section", "Sections"], term: ["School year period", "School year periods"], course: ["Subject", "Subjects"], offering: ["Subject class", "Subject classes"],
   } : kind === "college" ? {
-    unit: ["Department", "Departments"], program: ["Program", "Programs"], term: ["Term", "Terms"],
+    unit: ["Department", "Departments"], program: ["Program", "Programs"], term: ["Study year", "Study years"],
   } : { unit: ["Department", "Departments"], term: ["Semester", "Semesters"] }) };
   return Object.fromEntries(Object.entries(pairs).flatMap(([key, pair]) => [[key, pair[0]], [key + "_plural", pair[1]]]));
 }
@@ -50,7 +50,8 @@ export function termLabel(
 }
 export function useTerminology() {
   const { user } = useAuth();
-  const labels = user?.institute_profile?.terminology || {};
+  const profile = user?.institute_profile;
+  const labels = { ...(profile?.kind && profile.kind !== "other" ? terminologyPreset(profile.kind) : {}), ...profile?.terminology };
   return {
     label: (key: string, plural = false) => termLabel(labels, key, plural),
     title: (resource: string, fallback: string) =>

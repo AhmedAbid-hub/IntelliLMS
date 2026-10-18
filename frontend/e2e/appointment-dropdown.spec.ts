@@ -24,7 +24,7 @@ test('Head can open an unclipped eligible-teacher dropdown and appoint an author
     await expect(option).toBeVisible();
     // Clickability catches overflow clipping; DOM presence alone missed this bug.
     await option.click({trial:true});
-    await page.screenshot({path:`../docs/images/appointment-dropdown-${width}.png`,fullPage:true});
+    await page.screenshot({path:`test-results/evidence/appointment-dropdown-${width}.png`,fullPage:true});
     await option.click();
     await expect(page.getByRole('button',{name:'Eligible teacher',exact:true})).toContainText(username);
   }

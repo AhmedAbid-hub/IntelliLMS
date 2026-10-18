@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Building2,
   Mail,
+  ArrowLeft,
 } from "lucide-react";
 
 import {
@@ -43,6 +44,7 @@ import { BankCopy } from "../quizzes/BankCopy";
 import { QuizAuthoring } from "../quizzes/QuizAuthoring";
 import { Avatar } from "../../components/Avatar";
 import { notifySaved } from "../../components/ToastProvider";
+import { useInstitution } from "../../lib/institution";
 import { useTerminology } from "../../lib/terminology";
 import { useUrlFilters } from "../../lib/useUrlFilters";
 import { useAuth } from "../auth/Auth";
@@ -1169,6 +1171,37 @@ export function ResourcePage({
   const config = resources[resource];
   const terms = useTerminology();
   const { role, user } = useAuth();
+  const institution = useInstitution();
+
+  // Institute administrators browse offerings by academic department first.
+  const departmentBrowser = resource === "offerings" && role === "admin" && institution.departments;
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
+  const [selectedStage, setSelectedStage] = useState<number | null>(null);
+  const unitsQuery = useQuery({
+    queryKey: ["offering-browser-units"],
+    queryFn: () => api<Page<RecordData>>("units/?page_size=1000"),
+    enabled: departmentBrowser,
+  });
+  const catalogQuery = useQuery({
+    queryKey: ["offering-browser-catalog"],
+    queryFn: () => api<Page<RecordData>>("courses/?page_size=1000"),
+    enabled: departmentBrowser,
+  });
+  const programsQuery = useQuery({
+    queryKey: ["offering-browser-programs"],
+    queryFn: () => api<Page<RecordData>>("programs/?page_size=1000"),
+    enabled: departmentBrowser,
+  });
+  const sectionsQuery = useQuery({
+    queryKey: ["offering-browser-sections"],
+    queryFn: () => api<Page<RecordData>>("sections/?page_size=1000"),
+    enabled: departmentBrowser,
+  });
+  const curriculumQuery = useQuery({
+    queryKey: ["offering-browser-curriculum"],
+    queryFn: () => api<Page<RecordData>>("curriculum/?page_size=1000"),
+    enabled: departmentBrowser,
+  });
 
   const isAudit = resource === "audit";
 
@@ -1206,7 +1239,7 @@ export function ResourcePage({
     (role === "admin" || role === "head");
 
   const isRestrictedAcademicResource =
-    isAssignments || isQuizzes;
+    isAssignments || isQuizzes || ["lessons", "materials", "modules", "questions", "manual-grades", "question-bank"].includes(resource);
 
   const writable = isAttendance
     ? role === "teacher"
@@ -1214,7 +1247,9 @@ export function ResourcePage({
       ? role === "teacher"
       : config?.write.includes(role) ?? false;
 
-  const pageTitle = isPlatformUsers
+  const pageTitle = departmentBrowser
+    ? "Course offerings"
+    : isPlatformUsers
     ? "Institute Administrators"
     : isPeople && role === "superadmin"
       ? "Institute administrators"
@@ -1233,7 +1268,9 @@ export function ResourcePage({
                   config?.title || resource
                 );
 
-  const pageDescription = isPlatformUsers
+  const pageDescription = departmentBrowser
+    ? "Browse departments, review academic terms, and manage course delivery."
+    : isPlatformUsers
     ? "Manage platform accounts, review access status, and link eligible administrators to their institutions."
     : isPeople && role === "head"
       ? "View teachers and students within your academic department."
@@ -1429,23 +1466,6 @@ export function ResourcePage({
           <BankCopy row={row} />
         )}
 
-        {resource === "offerings" && (
-          <Button
-            variant="outline"
-            asChild
-          >
-            <Link
-              to={`/course/${row.id}`}
-            >
-              Open course
-              <ArrowUpRight
-                size={14}
-                aria-hidden="true"
-              />
-            </Link>
-          </Button>
-        )}
-
         {resource === "lessons" && (
           <Button
             variant="outline"
@@ -1626,6 +1646,66 @@ export function ResourcePage({
     );
   }
 
+  const allUnits = unitsQuery.data?.results ?? [];
+  const catalog = catalogQuery.data?.results ?? [];
+  const programs = programsQuery.data?.results ?? [];
+  const sections = sectionsQuery.data?.results ?? [];
+  const curriculum = curriculumQuery.data?.results ?? [];
+  const offeringRows = query.data?.results ?? [];
+
+  const byId = (rows: RecordData[]) =>
+    new Map(rows.map((item) => [String(item.id), item]));
+  const courseById = byId(catalog);
+  const unitById = byId(allUnits);
+  const programById = byId(programs);
+  const sectionById = byId(sections);
+
+  // Resolve the department through the actual academic relationships.
+  // Never turn a missing relationship into a fictitious department.
+  const departmentId = (row: RecordData): string | null => {
+    const course = courseById.get(String(row.course ?? ""));
+    const section = sectionById.get(String(row.section ?? ""));
+    const program = programById.get(String(section?.program ?? ""));
+    const value = course?.unit ?? row.unit ?? program?.unit;
+    return value == null || value === "" ? null : String(value);
+  };
+
+  const stageForOffering = (row: RecordData): number | null => {
+    const section = sectionById.get(String(row.section ?? ""));
+    const programId = section?.program == null ? null : String(section.program);
+    const courseId = row.course == null ? null : String(row.course);
+    if (!programId || !courseId) return null;
+    const matches = curriculum.filter(
+      (entry) =>
+        String(entry.program ?? "") === programId &&
+        String(entry.course ?? "") === courseId &&
+        entry.active !== false
+    );
+    const stages = Array.from(new Set(matches.map((entry) => Number(entry.stage))
+      .filter((stage) => Number.isInteger(stage) && stage > 0)));
+    return stages.length === 1 ? stages[0] : null;
+  };
+
+  const departmentNames = allUnits
+    .filter((unit) => String(unit.kind ?? "department") === "department")
+    .sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? "")));
+
+  const visibleOfferingRows = departmentBrowser && selectedDepartment !== null
+    ? offeringRows.filter((row) =>
+        departmentId(row) === selectedDepartment &&
+        (selectedStage === null || stageForOffering(row) === selectedStage)
+      )
+    : offeringRows;
+
+  const departmentStages = selectedDepartment === null ? [] :
+    Array.from(new Set(offeringRows
+      .filter((row) => departmentId(row) === selectedDepartment)
+      .map(stageForOffering)
+      .filter((stage): stage is number => stage !== null)))
+      .sort((a, b) => a - b);
+
+  const unassignedCount = offeringRows.filter((row) => departmentId(row) === null).length;
+
   const platformRows =
     isPlatformUsers
       ? query.data?.results ?? []
@@ -1640,17 +1720,6 @@ export function ResourcePage({
         {isPlatformUsers && (
           <AddInstituteAdministrator instituteId={user?.institute_id} />
         )}
-        {isAdminPeople && (
-          <Button
-            variant="outline"
-            asChild
-          >
-            <Link to="/student-admission">
-              Add Student
-            </Link>
-          </Button>
-        )}
-
         {isAdminPeople &&
           writable && (
             <ImportPeople />
@@ -1663,9 +1732,7 @@ export function ResourcePage({
             role === "head"
           ) && (
             <Button
-              onClick={() =>
-                setEditing(null)
-              }
+              onClick={() => setEditing(null)}
             >
               <Plus size={17} />
               {isAttendance
@@ -1684,7 +1751,7 @@ export function ResourcePage({
           className="people-tabs"
           aria-label="People groups"
         >
-          {peopleTabs.map((tab) => {
+          {peopleTabs.filter(tab => institution.departments || tab.value !== "head").map((tab) => {
             const activeRole =
               searchParams.get("role") || "";
 
@@ -1722,6 +1789,13 @@ export function ResourcePage({
             to="/question-bank"
           >
             Open question bank →
+          </Link>
+        )}
+
+      {resource === "enrollments" &&
+        (role === "admin" || role === "head") && (
+          <Link className="text-link" to="/offerings">
+            Manage course enrollments →
           </Link>
         )}
 
@@ -1900,27 +1974,78 @@ export function ResourcePage({
           />
         </div>
 
-        {query.isPending ? (
+        {query.isPending || (departmentBrowser && (unitsQuery.isPending || catalogQuery.isPending || programsQuery.isPending || sectionsQuery.isPending || curriculumQuery.isPending)) ? (
           <Loading />
         ) : query.isError ? (
           <ErrorState error={query.error} />
-        ) : !query.data.results.length ? (
-          <Empty />
+        ) : departmentBrowser && unitsQuery.isError ? (
+          <ErrorState error={unitsQuery.error} />
+        ) : departmentBrowser && catalogQuery.isError ? (
+          <ErrorState error={catalogQuery.error} />
+        ) : departmentBrowser && programsQuery.isError ? (
+          <ErrorState error={programsQuery.error} />
+        ) : departmentBrowser && sectionsQuery.isError ? (
+          <ErrorState error={sectionsQuery.error} />
+        ) : departmentBrowser && curriculumQuery.isError ? (
+          <ErrorState error={curriculumQuery.error} />
+        ) : departmentBrowser && selectedDepartment === null ? (
+          <div style={{ padding: 24 }}>
+            <h2 style={{ fontSize: 19, margin: "0 0 6px" }}>Departments</h2>
+            <p className="muted" style={{ margin: "0 0 20px" }}>Choose a department to manage its course offerings.</p>
+            {departmentNames.length === 0 ? <Empty>No departments yet. Create one in Departments & Programs.</Empty> : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+                {departmentNames.map((unit) => {
+                  const id = String(unit.id);
+                  const count = offeringRows.filter((row) => departmentId(row) === id).length;
+                  return (
+                    <button key={id} type="button" onClick={() => { setSelectedDepartment(id); setSelectedStage(null); }}
+                      style={{ padding: 20, border: "1px solid #dce8df", borderRadius: 14, background: "#fff", cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 12, color: "#173d2e", font: "inherit" }}>
+                      <Building2 size={22} aria-hidden="true" />
+                      <span style={{ flex: 1, fontWeight: 700 }}>{String(unit.name ?? "Department")}</span>
+                      <span className="count-badge">{count}</span>
+                      <ArrowUpRight size={16} aria-hidden="true" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {unassignedCount > 0 && (
+              <p className="muted" style={{ marginTop: 18 }}>
+                {unassignedCount} offering{unassignedCount === 1 ? "" : "s"} could not be linked to a department.
+                Assign a department to the course definition or link its section to a program with a department.
+                These records have not been deleted.
+              </p>
+            )}
+          </div>
         ) : resource === "offerings" ? (
-          <div className="course-grid">
-            {query.data.results.map(
-              (row, index) => (
-                <CourseCard
-                  key={String(row.id)}
-                  course={row}
-                  index={index}
-                  actions={
-                    <div className="course-management-actions">
-                      {actions(row)}
-                    </div>
-                  }
-                />
-              )
+          <div style={{ padding: "20px 24px" }}>
+            {departmentBrowser && selectedDepartment !== null && (
+              <div style={{ marginBottom: 20 }}>
+                <button type="button" onClick={() => { setSelectedDepartment(null); setSelectedStage(null); }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "none", border: 0, cursor: "pointer", color: "#176443", fontWeight: 650, padding: "4px 0 12px" }}>
+                  <ArrowLeft size={16} /> All departments
+                </button>
+                <h2 style={{ fontSize: 20, margin: "0 0 14px" }}>
+                  {String(unitById.get(selectedDepartment)?.name ?? "Department")}
+                </h2>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }} aria-label="Program semester selection">
+                  {[null, ...departmentStages].map((stage) => (
+                    <button key={stage ?? "all"} type="button" aria-pressed={selectedStage === stage}
+                      onClick={() => setSelectedStage(stage)}
+                      style={{ border: "1px solid #dce8df", borderRadius: 9, padding: "9px 14px", cursor: "pointer", fontWeight: 650, background: selectedStage === stage ? "#176443" : "#fff", color: selectedStage === stage ? "#fff" : "#173d2e" }}>
+                      {stage === null ? "All semesters" : `Semester ${stage}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {visibleOfferingRows.length === 0 ? <Empty>No course offerings in this selection.</Empty> : (
+              <div className="course-grid">
+                {visibleOfferingRows.map((row, index) => (
+                  <CourseCard key={String(row.id)} course={row} index={index}
+                    actions={<div className="course-management-actions">{actions(row)}</div>} />
+                ))}
+              </div>
             )}
           </div>
         ) : isPlatformUsers ? (

@@ -212,6 +212,69 @@ paths:
               schema:
                 $ref: '#/components/schemas/ControlResult'
           description: ''
+  /api/v1/academic-decisions/:
+    get:
+      operationId: v1_academic_decisions_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProgressionDecisionList'
+          description: ''
+  /api/v1/academic-history/:
+    get:
+      operationId: v1_academic_history_retrieve
+      description: Released academic results remain available to the learner after
+        withdrawal.
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryPage'
+          description: ''
+  /api/v1/academic-results/:
+    get:
+      operationId: v1_academic_results_retrieve
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicResults'
+          description: ''
   /api/v1/admissions/:
     post:
       operationId: v1_admissions_create
@@ -285,12 +348,196 @@ paths:
               schema:
                 $ref: '#/components/schemas/DashboardResult'
           description: ''
+  /api/v1/analytics/courses/:
+    get:
+      operationId: v1_analytics_courses_list
+      parameters:
+      - in: query
+        name: archived
+        schema:
+          type: boolean
+      - in: query
+        name: batch
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: course
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: offering
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: ordering
+        schema:
+          enum:
+          - title
+          - -title
+          - -learners
+          - learners
+          type: string
+          minLength: 1
+        description: |-
+          * `title` - title
+          * `-title` - -title
+          * `-learners` - -learners
+          * `learners` - learners
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+      - in: query
+        name: program
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: search
+        schema:
+          type: string
+          maxLength: 120
+      - in: query
+        name: section
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: stage
+        schema:
+          type: integer
+          maximum: 40
+          minimum: 1
+      - in: query
+        name: term
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: unit
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: year
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCourseComparisonList'
+          description: ''
+  /api/v1/analytics/learner-progress/:
+    get:
+      operationId: v1_analytics_learner_progress_retrieve
+      parameters:
+      - in: query
+        name: missing_only
+        schema:
+          type: boolean
+          default: false
+      - in: query
+        name: offering
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+      - in: query
+        name: student
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearnerProgressResult'
+          description: ''
   /api/v1/analytics/trends/:
     get:
       operationId: v1_analytics_trends_retrieve
       parameters:
       - in: query
+        name: archived
+        schema:
+          type: boolean
+      - in: query
+        name: batch
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: course
+        schema:
+          type: string
+          format: uuid
+      - in: query
         name: offering
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: program
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: section
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: stage
+        schema:
+          type: integer
+          maximum: 40
+          minimum: 1
+      - in: query
+        name: term
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: unit
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: year
         schema:
           type: string
           format: uuid
@@ -314,6 +561,21 @@ paths:
         schema:
           type: boolean
       - in: query
+        name: batch
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: course
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: offering
+        schema:
+          type: string
+          format: uuid
+      - in: query
         name: page
         schema:
           type: integer
@@ -325,10 +587,26 @@ paths:
           maximum: 100
           minimum: 1
       - in: query
+        name: program
+        schema:
+          type: string
+          format: uuid
+      - in: query
         name: search
         schema:
           type: string
           maxLength: 120
+      - in: query
+        name: section
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: stage
+        schema:
+          type: integer
+          maximum: 40
+          minimum: 1
       - in: query
         name: term
         schema:
@@ -336,6 +614,11 @@ paths:
           format: uuid
       - in: query
         name: unit
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: year
         schema:
           type: string
           format: uuid
@@ -1582,6 +1865,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/IdentityResult'
           description: ''
+  /api/v1/auth/select-workspace/:
+    post:
+      operationId: v1_auth_select_workspace_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SelectWorkspaceInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SelectWorkspaceInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SelectWorkspaceInput'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityResult'
+          description: ''
   /api/v1/batches/:
     get:
       operationId: v1_batches_list
@@ -1834,6 +2143,16 @@ paths:
         name: archived
         schema:
           type: boolean
+      - in: query
+        name: batch
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: course
+        schema:
+          type: string
+          format: uuid
       - in: path
         name: id
         schema:
@@ -1857,10 +2176,26 @@ paths:
           maximum: 100
           minimum: 1
       - in: query
+        name: program
+        schema:
+          type: string
+          format: uuid
+      - in: query
         name: search
         schema:
           type: string
           maxLength: 120
+      - in: query
+        name: section
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: stage
+        schema:
+          type: integer
+          maximum: 40
+          minimum: 1
       - in: query
         name: student
         schema:
@@ -1873,6 +2208,11 @@ paths:
           format: uuid
       - in: query
         name: unit
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: year
         schema:
           type: string
           format: uuid
@@ -2421,6 +2761,12 @@ paths:
   /api/v1/enrollments/:
     get:
       operationId: v1_enrollments_list
+      description: |-
+        Read-only enrollment records through standard endpoints.
+
+        All enrollment changes must use the offering's
+        bulk-enrollment action so that validation, reasons,
+        audit logging, and notifications are preserved.
       parameters:
       - in: query
         name: active
@@ -2467,6 +2813,12 @@ paths:
           description: ''
     post:
       operationId: v1_enrollments_create
+      description: |-
+        Read-only enrollment records through standard endpoints.
+
+        All enrollment changes must use the offering's
+        bulk-enrollment action so that validation, reasons,
+        audit logging, and notifications are preserved.
       tags:
       - v1
       requestBody:
@@ -2493,6 +2845,12 @@ paths:
   /api/v1/enrollments/{id}/:
     get:
       operationId: v1_enrollments_retrieve
+      description: |-
+        Read-only enrollment records through standard endpoints.
+
+        All enrollment changes must use the offering's
+        bulk-enrollment action so that validation, reasons,
+        audit logging, and notifications are preserved.
       parameters:
       - in: path
         name: id
@@ -2514,6 +2872,12 @@ paths:
           description: ''
     put:
       operationId: v1_enrollments_update
+      description: |-
+        Read-only enrollment records through standard endpoints.
+
+        All enrollment changes must use the offering's
+        bulk-enrollment action so that validation, reasons,
+        audit logging, and notifications are preserved.
       parameters:
       - in: path
         name: id
@@ -2547,6 +2911,12 @@ paths:
           description: ''
     patch:
       operationId: v1_enrollments_partial_update
+      description: |-
+        Read-only enrollment records through standard endpoints.
+
+        All enrollment changes must use the offering's
+        bulk-enrollment action so that validation, reasons,
+        audit logging, and notifications are preserved.
       parameters:
       - in: path
         name: id
@@ -2579,6 +2949,12 @@ paths:
           description: ''
     delete:
       operationId: v1_enrollments_destroy
+      description: |-
+        Read-only enrollment records through standard endpoints.
+
+        All enrollment changes must use the offering's
+        bulk-enrollment action so that validation, reasons,
+        audit logging, and notifications are preserved.
       parameters:
       - in: path
         name: id
@@ -2603,6 +2979,16 @@ paths:
         schema:
           type: boolean
       - in: query
+        name: batch
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: course
+        schema:
+          type: string
+          format: uuid
+      - in: query
         name: offering
         schema:
           type: string
@@ -2619,10 +3005,26 @@ paths:
           maximum: 100
           minimum: 1
       - in: query
+        name: program
+        schema:
+          type: string
+          format: uuid
+      - in: query
         name: search
         schema:
           type: string
           maxLength: 120
+      - in: query
+        name: section
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: stage
+        schema:
+          type: integer
+          maximum: 40
+          minimum: 1
       - in: query
         name: student
         schema:
@@ -2635,6 +3037,11 @@ paths:
           format: uuid
       - in: query
         name: unit
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: year
         schema:
           type: string
           format: uuid
@@ -2864,11 +3271,7 @@ paths:
       - cookieAuth: []
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Institute'
-          description: ''
+          description: No response body
   /api/v1/lessons/:
     get:
       operationId: v1_lessons_list
@@ -3610,6 +4013,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/Membership'
           description: ''
+  /api/v1/memberships/{id}/academic-results/:
+    get:
+      operationId: v1_memberships_academic_results_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicResults'
+          description: ''
   /api/v1/memberships/{id}/avatar/:
     get:
       operationId: v1_memberships_avatar_retrieve
@@ -3693,6 +4117,78 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedStudentPlacementList'
+          description: ''
+  /api/v1/memberships/{id}/progress/:
+    post:
+      operationId: v1_memberships_progress_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgressionInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProgressionInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProgressionInput'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionResult'
+          description: ''
+  /api/v1/memberships/{id}/progression-history/:
+    get:
+      operationId: v1_memberships_progression_history_list
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProgressionDecisionList'
           description: ''
   /api/v1/memberships/{id}/replace-head/:
     post:
@@ -4683,6 +5179,16 @@ paths:
         schema:
           type: boolean
       - in: query
+        name: batch
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: course
+        schema:
+          type: string
+          format: uuid
+      - in: query
         name: offering
         schema:
           type: string
@@ -4699,10 +5205,26 @@ paths:
           maximum: 100
           minimum: 1
       - in: query
+        name: program
+        schema:
+          type: string
+          format: uuid
+      - in: query
         name: search
         schema:
           type: string
           maxLength: 120
+      - in: query
+        name: section
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: stage
+        schema:
+          type: integer
+          maximum: 40
+          minimum: 1
       - in: query
         name: student
         schema:
@@ -4715,6 +5237,11 @@ paths:
           format: uuid
       - in: query
         name: unit
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: year
         schema:
           type: string
           format: uuid
@@ -4759,7 +5286,52 @@ paths:
       operationId: v1_predictions_summary_retrieve
       parameters:
       - in: query
+        name: archived
+        schema:
+          type: boolean
+      - in: query
+        name: batch
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: course
+        schema:
+          type: string
+          format: uuid
+      - in: query
         name: offering
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: program
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: section
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: stage
+        schema:
+          type: integer
+          maximum: 40
+          minimum: 1
+      - in: query
+        name: term
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: unit
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: year
         schema:
           type: string
           format: uuid
@@ -5722,6 +6294,16 @@ paths:
         schema:
           type: boolean
       - in: query
+        name: batch
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: course
+        schema:
+          type: string
+          format: uuid
+      - in: query
         name: offering
         schema:
           type: string
@@ -5738,10 +6320,26 @@ paths:
           maximum: 100
           minimum: 1
       - in: query
+        name: program
+        schema:
+          type: string
+          format: uuid
+      - in: query
         name: search
         schema:
           type: string
           maxLength: 120
+      - in: query
+        name: section
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: stage
+        schema:
+          type: integer
+          maximum: 40
+          minimum: 1
       - in: query
         name: student
         schema:
@@ -5754,6 +6352,11 @@ paths:
           format: uuid
       - in: query
         name: unit
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: year
         schema:
           type: string
           format: uuid
@@ -7016,6 +7619,39 @@ paths:
           description: No response body
 components:
   schemas:
+    AcademicResults:
+      type: object
+      properties:
+        status:
+          type: string
+        notice:
+          type: string
+        policy:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        programs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProgramResult'
+        excluded:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExcludedResult'
+      required:
+      - excluded
+      - notice
+      - policy
+      - programs
+      - status
+    AcademicStructureEnum:
+      enum:
+      - semester
+      - annual
+      type: string
+      description: |-
+        * `semester` - Semester
+        * `annual` - Annual
     AcademicTargetKindEnum:
       enum:
       - submission
@@ -7030,6 +7666,14 @@ components:
         * `manual` - manual
         * `attendance` - attendance
         * `attendance_session` - attendance_session
+    AcademicWorkspaceEnum:
+      enum:
+      - department
+      - teaching
+      type: string
+      description: |-
+        * `department` - department
+        * `teaching` - teaching
     ActivityDay:
       type: object
       properties:
@@ -7098,6 +7742,15 @@ components:
     AdmissionInput:
       type: object
       properties:
+        stage:
+          type: integer
+          maximum: 40
+          minimum: 1
+          default: 1
+        term:
+          type: string
+          format: uuid
+          nullable: true
         program:
           type: string
           format: uuid
@@ -7350,9 +8003,8 @@ components:
           format: uri
         max_marks:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
         due_at:
           type: string
           format: date-time
@@ -7396,6 +8048,48 @@ components:
       - assessments
       - date
       - percentage
+    AssignmentProgressRow:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        due_at:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/AssignmentProgressRowStatusEnum'
+        max_marks:
+          type: integer
+        marks:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+          nullable: true
+        feedback:
+          type: string
+      required:
+      - due_at
+      - feedback
+      - id
+      - marks
+      - max_marks
+      - status
+      - title
+    AssignmentProgressRowStatusEnum:
+      enum:
+      - missing
+      - pending
+      - submitted
+      - released
+      type: string
+      description: |-
+        * `missing` - missing
+        * `pending` - pending
+        * `submitted` - submitted
+        * `released` - released
     AssignmentSubmitInput:
       type: object
       properties:
@@ -7693,6 +8387,7 @@ components:
           readOnly: true
         finalized:
           type: boolean
+          readOnly: true
         date:
           type: string
           format: date
@@ -7714,6 +8409,7 @@ components:
       required:
       - created_at
       - date
+      - finalized
       - id
       - institute
       - offering
@@ -7798,9 +8494,8 @@ components:
           type: string
         marks:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
         institute:
           type: string
           format: uuid
@@ -7825,6 +8520,9 @@ components:
       - kind
       - prompt
       - unit_label
+    BlankEnum:
+      enum:
+      - ''
     BulkEnrollmentInput:
       type: object
       properties:
@@ -7913,6 +8611,9 @@ components:
     ControlResult:
       type: object
       properties:
+        lock_reason:
+          type: string
+          nullable: true
         kind:
           type: string
         target:
@@ -8110,6 +8811,66 @@ components:
       - institute
       - name
       - unit_label
+    CourseComparison:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        department:
+          type: string
+          default: Unassigned
+        term:
+          type: string
+        section:
+          type: string
+          nullable: true
+        learners:
+          type: integer
+        instructors:
+          type: integer
+        due_assignments:
+          type: integer
+        submitted_due:
+          type: integer
+        missing_submissions:
+          type: integer
+          readOnly: true
+        released_grades:
+          type: integer
+        below_pass_mark:
+          type: integer
+        meeting_pass_mark:
+          type: integer
+          readOnly: true
+        assignment_average:
+          type: number
+          format: double
+          nullable: true
+        attendance_records:
+          type: integer
+        attendance_percentage:
+          type: number
+          format: double
+          nullable: true
+          readOnly: true
+      required:
+      - assignment_average
+      - attendance_percentage
+      - attendance_records
+      - below_pass_mark
+      - due_assignments
+      - id
+      - instructors
+      - learners
+      - meeting_pass_mark
+      - missing_submissions
+      - released_grades
+      - submitted_due
+      - term
+      - title
     CsvImportInput:
       type: object
       properties:
@@ -8206,6 +8967,10 @@ components:
     DashboardResult:
       type: object
       properties:
+        structure_counts:
+          type: object
+          additionalProperties:
+            type: integer
         active_courses:
           type: integer
         students:
@@ -8246,6 +9011,7 @@ components:
       - gradebook_preview_limit
       - institute
       - role
+      - structure_counts
       - students
       - submissions
       - teachers
@@ -8287,6 +9053,30 @@ components:
       required:
       - decision
       - reason
+    DecisionResult:
+      type: object
+      properties:
+        preview:
+          type: boolean
+        evidence:
+          type: object
+          additionalProperties: {}
+        evidence_token:
+          type: string
+        decision:
+          type: string
+          format: uuid
+          nullable: true
+        placement:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - decision
+      - evidence
+      - evidence_token
+      - placement
+      - preview
     DepartmentResult:
       type: object
       properties:
@@ -8330,6 +9120,25 @@ components:
           maxLength: 180
       required:
       - title
+    EndReasonEnum:
+      enum:
+      - transfer
+      - progress
+      - repeat
+      - correct
+      - withdraw
+      - complete
+      - graduate
+      type: string
+      description: |-
+        * `` - Not recorded
+        * `transfer` - Transferred
+        * `progress` - Progressed
+        * `repeat` - Repeated
+        * `correct` - Corrected
+        * `withdraw` - Withdrawn
+        * `complete` - Completed
+        * `graduate` - Graduated
     Enrollment:
       type: object
       properties:
@@ -8397,6 +9206,9 @@ components:
             type: array
             items:
               type: integer
+        average_precision:
+          type: number
+          format: double
       required:
       - accuracy
       - brier_score
@@ -8405,6 +9217,20 @@ components:
       - precision
       - recall
       - roc_auc
+    ExcludedResult:
+      type: object
+      properties:
+        offering:
+          type: string
+          format: uuid
+        label:
+          type: string
+        reason:
+          type: string
+      required:
+      - label
+      - offering
+      - reason
     FinalizeInput:
       type: object
       properties:
@@ -8573,6 +9399,139 @@ components:
       - submitted_assignments
       - unit
       - unit_label
+    HistoryPage:
+      type: object
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          format: uri
+          nullable: true
+        previous:
+          type: string
+          format: uri
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryRow'
+      required:
+      - count
+      - next
+      - previous
+      - results
+    HistoryRow:
+      type: object
+      properties:
+        student:
+          type: string
+          format: uuid
+        student_label:
+          type: string
+        offering:
+          type: string
+          format: uuid
+        offering_label:
+          type: string
+        unit:
+          type: string
+          format: uuid
+          nullable: true
+        unit_label:
+          type: string
+        score:
+          type: number
+          format: double
+          nullable: true
+        provisional:
+          type: boolean
+        letter_grade:
+          type: string
+          nullable: true
+        grade_points:
+          type: number
+          format: double
+          nullable: true
+        pass_mark:
+          type: number
+          format: double
+        meeting_pass_mark:
+          type: boolean
+          nullable: true
+        assignment_pct:
+          type: number
+          format: double
+          nullable: true
+        quiz_pct:
+          type: number
+          format: double
+          nullable: true
+        manual_pct:
+          type: number
+          format: double
+          nullable: true
+        attendance_pct:
+          type: number
+          format: double
+          nullable: true
+        completion_pct:
+          type: number
+          format: double
+          nullable: true
+        activity_count:
+          type: integer
+        attendance_records:
+          type: integer
+        graded_assignments:
+          type: integer
+        graded_quizzes:
+          type: integer
+        published_lessons:
+          type: integer
+        completed_lessons:
+          type: integer
+        available_assignments:
+          type: integer
+        submitted_assignments:
+          type: integer
+        assignment_completion_pct:
+          type: number
+          format: double
+          nullable: true
+        term:
+          type: string
+        active:
+          type: boolean
+      required:
+      - active
+      - activity_count
+      - assignment_completion_pct
+      - assignment_pct
+      - attendance_pct
+      - attendance_records
+      - available_assignments
+      - completed_lessons
+      - completion_pct
+      - grade_points
+      - graded_assignments
+      - graded_quizzes
+      - letter_grade
+      - manual_pct
+      - meeting_pass_mark
+      - offering
+      - offering_label
+      - pass_mark
+      - provisional
+      - published_lessons
+      - quiz_pct
+      - score
+      - student
+      - student_label
+      - submitted_assignments
+      - term
+      - unit
+      - unit_label
     IdentityMembership:
       type: object
       properties:
@@ -8587,7 +9546,10 @@ components:
           type: string
           format: uuid
           nullable: true
+        can_teach:
+          type: boolean
       required:
+      - can_teach
       - institute__name
       - institute_id
       - role
@@ -8595,6 +9557,8 @@ components:
     IdentityResult:
       type: object
       properties:
+        academic_workspace:
+          $ref: '#/components/schemas/AcademicWorkspaceEnum'
         avatar_url:
           type: string
           nullable: true
@@ -8627,6 +9591,7 @@ components:
           items:
             $ref: '#/components/schemas/IdentityMembership'
       required:
+      - academic_workspace
       - avatar_url
       - email
       - first_name
@@ -8677,6 +9642,10 @@ components:
           type: string
           format: uuid
           readOnly: true
+        policy_change_reason:
+          type: string
+          writeOnly: true
+          maxLength: 1000
         name:
           type: string
           maxLength: 180
@@ -8710,6 +9679,9 @@ components:
     InstituteProfile:
       type: object
       properties:
+        academic_config:
+          type: object
+          additionalProperties: {}
         name:
           type: string
         kind:
@@ -8720,6 +9692,7 @@ components:
             type: string
         grading_rules: {}
       required:
+      - academic_config
       - grading_rules
       - kind
       - name
@@ -8779,6 +9752,7 @@ components:
         email_status:
           type: string
           nullable: true
+          description: 'pending: queued/sending; accepted: SMTP accepted, not inbox delivery; failed: not submitted; local: test capture only; sent: legacy transport unknown.'
         issued_at:
           type: string
           format: date-time
@@ -8837,6 +9811,31 @@ components:
       - status
       - student
       - student_label
+    LearnerProgressResult:
+      type: object
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          format: uri
+          nullable: true
+        previous:
+          type: string
+          format: uri
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssignmentProgressRow'
+        summary:
+          $ref: '#/components/schemas/GradeRow'
+      required:
+      - count
+      - next
+      - previous
+      - results
+      - summary
     Lesson:
       type: object
       properties:
@@ -8859,9 +9858,8 @@ components:
           maxLength: 200
         position:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
         published:
           type: boolean
         visible_at:
@@ -8916,6 +9914,7 @@ components:
           readOnly: true
         finalized:
           type: boolean
+          readOnly: true
         title:
           type: string
           maxLength: 180
@@ -8925,9 +9924,8 @@ components:
           pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
         max_marks:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
         feedback:
           type: string
         released:
@@ -8952,6 +9950,7 @@ components:
           nullable: true
       required:
       - created_at
+      - finalized
       - id
       - institute
       - marks
@@ -9137,6 +10136,26 @@ components:
           type: string
         sha256:
           type: string
+        target_label:
+          type: string
+        feature_schema:
+          type: string
+        source: {}
+        training_configuration: {}
+        preprocessing:
+          type: string
+        feature_units: {}
+        split_students: {}
+        split_positive_rows: {}
+        split_hashes: {}
+        validation_thresholds: {}
+        test_baseline_metrics: {}
+        test_majority_metrics: {}
+        decision_threshold:
+          type: number
+          format: double
+        category_note:
+          type: string
       required:
       - status
     Module:
@@ -9155,9 +10174,8 @@ components:
           maxLength: 150
         position:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
         institute:
           type: string
           format: uuid
@@ -9234,19 +10252,16 @@ components:
           type: boolean
         assignment_weight:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         quiz_weight:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         manual_weight:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         institute:
           type: string
           format: uuid
@@ -9595,6 +10610,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Correction'
+    PaginatedCourseComparisonList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CourseComparison'
     PaginatedCourseList:
       type: object
       required:
@@ -9963,6 +11001,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Program'
+    PaginatedProgressionDecisionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProgressionDecision'
     PaginatedQuestionList:
       type: object
       required:
@@ -10373,9 +11434,8 @@ components:
           format: uri
         max_marks:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
         due_at:
           type: string
           format: date-time
@@ -10409,6 +11469,7 @@ components:
           readOnly: true
         finalized:
           type: boolean
+          readOnly: true
         date:
           type: string
           format: date
@@ -10447,9 +11508,8 @@ components:
           type: string
         marks:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
         institute:
           type: string
           format: uuid
@@ -10582,6 +11642,10 @@ components:
           type: string
           format: uuid
           readOnly: true
+        policy_change_reason:
+          type: string
+          writeOnly: true
+          maxLength: 1000
         name:
           type: string
           maxLength: 180
@@ -10617,9 +11681,8 @@ components:
           maxLength: 200
         position:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
         published:
           type: boolean
         visible_at:
@@ -10654,6 +11717,7 @@ components:
           readOnly: true
         finalized:
           type: boolean
+          readOnly: true
         title:
           type: string
           maxLength: 180
@@ -10663,9 +11727,8 @@ components:
           pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
         max_marks:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
         feedback:
           type: string
         released:
@@ -10810,9 +11873,8 @@ components:
           maxLength: 150
         position:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
         institute:
           type: string
           format: uuid
@@ -10844,19 +11906,16 @@ components:
           type: boolean
         assignment_weight:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         quiz_weight:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         manual_weight:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         institute:
           type: string
           format: uuid
@@ -10969,7 +12028,7 @@ components:
           maximum: 40
           minimum: 1
         structure:
-          $ref: '#/components/schemas/StructureEnum'
+          $ref: '#/components/schemas/AcademicStructureEnum'
         active:
           type: boolean
           default: true
@@ -11001,9 +12060,8 @@ components:
           readOnly: true
         position:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
         prompt:
           type: string
         kind:
@@ -11013,9 +12071,8 @@ components:
           type: string
         marks:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
         institute:
           type: string
           format: uuid
@@ -11047,14 +12104,12 @@ components:
           format: date-time
         minutes:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
         attempt_limit:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         released:
           type: boolean
         institute:
@@ -11118,6 +12173,10 @@ components:
           type: string
           format: date-time
           readOnly: true
+        period_type:
+          oneOf:
+          - $ref: '#/components/schemas/AcademicStructureEnum'
+          - $ref: '#/components/schemas/BlankEnum'
         status:
           $ref: '#/components/schemas/TermStatusEnum'
         name:
@@ -11155,7 +12214,7 @@ components:
           allOf:
           - $ref: '#/components/schemas/DayEnum'
           minimum: 0
-          maximum: 9223372036854775807
+          maximum: 32767
         start:
           type: string
           format: time
@@ -11225,6 +12284,64 @@ components:
           type: string
           format: uuid
           readOnly: true
+    PeriodResult:
+      type: object
+      properties:
+        term:
+          type: string
+          format: uuid
+        label:
+          type: string
+        gpa:
+          type: number
+          format: double
+          nullable: true
+        credits:
+          type: number
+          format: double
+        attempts:
+          type: integer
+      required:
+      - attempts
+      - credits
+      - gpa
+      - label
+      - term
+    PlacementInput:
+      type: object
+      properties:
+        stage:
+          type: integer
+          maximum: 40
+          minimum: 1
+          default: 1
+        term:
+          type: string
+          format: uuid
+          nullable: true
+        program:
+          type: string
+          format: uuid
+        batch:
+          type: string
+          format: uuid
+          nullable: true
+        year:
+          type: string
+          format: uuid
+        section:
+          type: string
+          format: uuid
+          nullable: true
+        offerings:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+      required:
+      - program
+      - year
     PlatformAudit:
       type: object
       properties:
@@ -11283,12 +12400,15 @@ components:
           type: integer
         active_institutes:
           type: integer
+        institute_administrators:
+          type: integer
         users:
           type: integer
         memberships:
           type: integer
       required:
       - active_institutes
+      - institute_administrators
       - institutes
       - memberships
       - users
@@ -11375,6 +12495,8 @@ components:
             nullable: true
         warning:
           type: string
+        model_info: {}
+        observations: {}
       required:
       - category
       - created_at
@@ -11455,6 +12577,8 @@ components:
         created_at:
           type: string
           format: date-time
+        model_info: {}
+        observations: {}
       required:
       - status
     Program:
@@ -11473,7 +12597,7 @@ components:
           maximum: 40
           minimum: 1
         structure:
-          $ref: '#/components/schemas/StructureEnum'
+          $ref: '#/components/schemas/AcademicStructureEnum'
         active:
           type: boolean
           default: true
@@ -11498,6 +12622,137 @@ components:
       - institute
       - name
       - unit_label
+    ProgramResult:
+      type: object
+      properties:
+        program:
+          type: string
+          format: uuid
+        label:
+          type: string
+        cgpa:
+          type: number
+          format: double
+          nullable: true
+        credits:
+          type: number
+          format: double
+        attempts:
+          type: integer
+        periods:
+          type: array
+          items:
+            $ref: '#/components/schemas/PeriodResult'
+      required:
+      - attempts
+      - cgpa
+      - credits
+      - label
+      - periods
+      - program
+    ProgressionDecision:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        operation:
+          $ref: '#/components/schemas/ProgressionDecisionOperationEnum'
+        reason:
+          type: string
+          maxLength: 1000
+        evidence: {}
+        institute:
+          type: string
+          format: uuid
+          readOnly: true
+        membership:
+          type: string
+          format: uuid
+        previous:
+          type: string
+          format: uuid
+        placement:
+          type: string
+          format: uuid
+          nullable: true
+        actor:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - created_at
+      - id
+      - institute
+      - membership
+      - operation
+      - previous
+      - reason
+    ProgressionDecisionOperationEnum:
+      enum:
+      - progress
+      - repeat
+      - correct
+      - withdraw
+      - complete
+      - graduate
+      type: string
+      description: |-
+        * `progress` - Progress
+        * `repeat` - Repeat
+        * `correct` - Correct placement
+        * `withdraw` - Withdraw
+        * `complete` - Complete
+        * `graduate` - Graduate
+    ProgressionInput:
+      type: object
+      properties:
+        operation:
+          $ref: '#/components/schemas/ProgressionInputOperationEnum'
+        expected_placement:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 5
+        target:
+          $ref: '#/components/schemas/PlacementInput'
+        preview:
+          type: boolean
+          default: true
+        confirm_review:
+          type: boolean
+          default: false
+        evidence_token:
+          type: string
+          default: ''
+          maxLength: 64
+      required:
+      - expected_placement
+      - operation
+      - reason
+    ProgressionInputOperationEnum:
+      enum:
+      - progress
+      - repeat
+      - correct
+      - withdraw
+      - complete
+      - graduate
+      type: string
+      description: |-
+        * `progress` - progress
+        * `repeat` - repeat
+        * `correct` - correct
+        * `withdraw` - withdraw
+        * `complete` - complete
+        * `graduate` - graduate
     Question:
       type: object
       properties:
@@ -11511,9 +12766,8 @@ components:
           readOnly: true
         position:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
         prompt:
           type: string
         kind:
@@ -11523,9 +12777,8 @@ components:
           type: string
         marks:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
         institute:
           type: string
           format: uuid
@@ -11622,14 +12875,12 @@ components:
           format: date-time
         minutes:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
         attempt_limit:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         released:
           type: boolean
         institute:
@@ -11724,7 +12975,17 @@ components:
         status:
           type: string
           nullable: true
+        attendance_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        finalized:
+          type: boolean
+          readOnly: true
       required:
+      - attendance_id
+      - finalized
       - id
       - status
       - student
@@ -11819,6 +13080,13 @@ components:
           format: uuid
       required:
       - institute_id
+    SelectWorkspaceInput:
+      type: object
+      properties:
+        academic_workspace:
+          $ref: '#/components/schemas/AcademicWorkspaceEnum'
+      required:
+      - academic_workspace
     SetupResult:
       type: object
       properties:
@@ -11867,14 +13135,6 @@ components:
           format: uuid
       required:
       - offering
-    StructureEnum:
-      enum:
-      - semester
-      - annual
-      type: string
-      description: |-
-        * `semester` - Semester
-        * `annual` - Annual
     StudentPlacement:
       type: object
       properties:
@@ -11886,6 +13146,15 @@ components:
           type: string
           format: date-time
           readOnly: true
+        stage:
+          type: integer
+          maximum: 40
+          minimum: 1
+          nullable: true
+        end_reason:
+          oneOf:
+          - $ref: '#/components/schemas/EndReasonEnum'
+          - $ref: '#/components/schemas/BlankEnum'
         ended_at:
           type: string
           format: date-time
@@ -11897,6 +13166,10 @@ components:
           type: string
           format: uuid
           readOnly: true
+        term:
+          type: string
+          format: uuid
+          nullable: true
         membership:
           type: string
           format: uuid
@@ -11918,6 +13191,10 @@ components:
         actor:
           type: string
           format: uuid
+          nullable: true
+        term_label:
+          type: string
+          readOnly: true
           nullable: true
         section_label:
           type: string
@@ -11945,6 +13222,7 @@ components:
       - program_label
       - reason
       - section_label
+      - term_label
       - year_label
     Submission:
       type: object
@@ -11959,6 +13237,7 @@ components:
           readOnly: true
         finalized:
           type: boolean
+          readOnly: true
         text:
           type: string
         file:
@@ -11995,6 +13274,7 @@ components:
       required:
       - assignment
       - created_at
+      - finalized
       - id
       - institute
       - student
@@ -12078,6 +13358,10 @@ components:
           type: string
           format: date-time
           readOnly: true
+        period_type:
+          oneOf:
+          - $ref: '#/components/schemas/AcademicStructureEnum'
+          - $ref: '#/components/schemas/BlankEnum'
         status:
           $ref: '#/components/schemas/TermStatusEnum'
         name:
@@ -12134,7 +13418,7 @@ components:
           allOf:
           - $ref: '#/components/schemas/DayEnum'
           minimum: 0
-          maximum: 9223372036854775807
+          maximum: 32767
         start:
           type: string
           format: time
@@ -12168,6 +13452,15 @@ components:
     TransferInput:
       type: object
       properties:
+        stage:
+          type: integer
+          maximum: 40
+          minimum: 1
+          default: 1
+        term:
+          type: string
+          format: uuid
+          nullable: true
         program:
           type: string
           format: uuid

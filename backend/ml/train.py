@@ -26,6 +26,7 @@ from sklearn.metrics import (
     confusion_matrix,
     brier_score_loss,
     ConfusionMatrixDisplay,
+    average_precision_score,
 )
 
 FEATURES = [
@@ -97,8 +98,8 @@ def validate(frame):
             raise ValueError("Insufficient feature coverage: " + col)
 
 
-def metrics(y, p):
-    pred = (p >= 0.5).astype(int)
+def metrics(y, p, threshold=0.5):
+    pred = (p >= threshold).astype(int)
     return {
         "accuracy": accuracy_score(y, pred),
         "precision": precision_score(y, pred, zero_division=0),
@@ -210,12 +211,101 @@ def train(frame, demo=True, output=ARTIFACTS):
     return metadata
 
 
+def train_oulad(directory=None, output=ARTIFACTS):
+    """Extend the trusted artifact experiment with an explicit public-data schema."""
+    import sklearn
+    from sklearn.dummy import DummyClassifier
+    from . import oulad
+
+    frame, source = oulad.prepare(directory or oulad.download())
+    groups = frame.student_id
+    trainval, test = next(GroupShuffleSplit(n_splits=1, test_size=.2, random_state=42).split(frame, groups=groups))
+    a, b = next(GroupShuffleSplit(n_splits=1, test_size=.25, random_state=43).split(frame.iloc[trainval], groups=groups.iloc[trainval]))
+    train_idx, val_idx = trainval[a], trainval[b]
+    splits = {"train": train_idx, "validation": val_idx, "test": test}
+    x, y = frame[oulad.FEATURES], frame.target
+    for name, indices in splits.items():
+        if y.iloc[indices].nunique() != 2:
+            raise ValueError("Both outcome classes required in " + name)
+    if any(set(groups.iloc[splits[left]]) & set(groups.iloc[splits[right]])
+           for left, right in [("train", "validation"), ("train", "test"), ("validation", "test")]):
+        raise ValueError("Student leakage across partitions.")
+    # No reweighting/resampling: preserve observed prevalence for probability estimates.
+    candidates = {
+        "prevalence_baseline": make_pipeline(SimpleImputer(strategy="median"), DummyClassifier(strategy="prior")),
+        "logistic_regression": make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), LogisticRegression(max_iter=1000, random_state=42)),
+        "random_forest": make_pipeline(SimpleImputer(strategy="median"), RandomForestClassifier(n_estimators=200, max_depth=6, min_samples_leaf=30, random_state=42, n_jobs=1)),
+        "gradient_boosting": make_pipeline(SimpleImputer(strategy="median"), HistGradientBoostingClassifier(max_iter=100, max_leaf_nodes=7, min_samples_leaf=40, l2_regularization=1, random_state=42)),
+    }
+    validation, thresholds = {}, {}
+    for name, model in candidates.items():
+        model.fit(x.iloc[train_idx], y.iloc[train_idx])
+        probabilities = model.predict_proba(x.iloc[val_idx])[:, 1]
+        grid = np.arange(.05, .51, .01)
+        threshold = float(max(grid, key=lambda t: f1_score(y.iloc[val_idx], probabilities >= t, zero_division=0)))
+        thresholds[name] = round(threshold, 2)
+        validation[name] = metrics(y.iloc[val_idx], probabilities, thresholds[name])
+        validation[name]["average_precision"] = average_precision_score(y.iloc[val_idx], probabilities)
+    best = max(validation, key=lambda name: (validation[name]["f1"], -validation[name]["brier_score"]))
+    if best == "prevalence_baseline":
+        raise ValueError("No candidate improves on the simple baseline; refusing activation.")
+    model = candidates[best]
+    model.fit(x.iloc[trainval], y.iloc[trainval])
+    probabilities = model.predict_proba(x.iloc[test])[:, 1]
+    measured = metrics(y.iloc[test], probabilities, thresholds[best])
+    measured["average_precision"] = average_precision_score(y.iloc[test], probabilities)
+    baseline = candidates["prevalence_baseline"]
+    baseline.fit(x.iloc[trainval], y.iloc[trainval])
+    baseline_metrics = metrics(y.iloc[test], baseline.predict_proba(x.iloc[test])[:, 1], thresholds["prevalence_baseline"])
+    config = {"schema": oulad.SCHEMA, "seed": 42, "validation_seed": 43, "sklearn": sklearn.__version__,
+              "selection": "Validation F1, tie break lower Brier; threshold grid 0.05..0.50 step 0.01; refit train+validation; held-out test once",
+              "candidate_parameters": {name: {k: str(v) for k, v in candidate.get_params().items()} for name, candidate in candidates.items()},
+              "code_sha256": hashlib.sha256(Path(__file__).read_bytes() + Path(oulad.__file__).read_bytes()).hexdigest()}
+    version = "oulad-" + hashlib.sha256((frame.to_csv(index=False) + json.dumps(config, sort_keys=True)).encode()).hexdigest()[:16]
+    metadata = {"version": version, "target": oulad.TARGET, "target_label": oulad.TARGET_LABEL,
+        "features": oulad.FEATURES, "feature_schema": oulad.SCHEMA, "mode": "external_public", "warning": oulad.WARNING,
+        "selected_model": best, "seed": 42, "rows": len(frame), "source": source, "training_configuration": config,
+        "preprocessing": "Complete observed score pairs only; train-fitted median imputer (defensive) and StandardScaler for logistic regression; live missing scores rejected, never imputed.",
+        "feature_units": {name: "Recorded assignment marks / maximum marks * 100" for name in oulad.FEATURES},
+        "split_sizes": {name: len(indices) for name, indices in splits.items()},
+        "split_students": {name: groups.iloc[indices].nunique() for name, indices in splits.items()},
+        "split_positive_rows": {name: int(y.iloc[indices].sum()) for name, indices in splits.items()},
+        "split_hashes": {name: hashlib.sha256('\n'.join(sorted(set(groups.iloc[indices]))).encode()).hexdigest() for name, indices in splits.items()},
+        "split_strategy": "Student-group-disjoint seeded 60/20/20; repeated students across courses remain in one partition. No temporal/institution holdout claim.",
+        "validation_metrics": validation, "validation_thresholds": thresholds, "test_metrics": measured,
+        "test_baseline_metrics": baseline_metrics, "decision_threshold": thresholds[best],
+        "test_majority_metrics": metrics(y.iloc[test], baseline.predict_proba(x.iloc[test])[:, 1], .5),
+        "thresholds": {"moderate": thresholds[best], "high": round(min(.95, thresholds[best] + .2), 2)},
+        "category_note": "Exploratory support bands, not validated intervention cutoffs; classification threshold selected only on validation data.",
+    }
+    output.mkdir(parents=True, exist_ok=True)
+    artifact = output / (version + ".joblib")
+    joblib.dump(model, artifact)
+    metadata.update(artifact=artifact.name, sha256=hashlib.sha256(artifact.read_bytes()).hexdigest())
+    encoded = json.dumps(metadata, indent=2)
+    (output / (version + ".json")).write_text(encoded, encoding="utf-8")
+    # Activate only after the full artifact and immutable metadata are saved.
+    temporary = output / "metadata.pending.json"
+    temporary.write_text(encoded, encoding="utf-8")
+    temporary.replace(output / "metadata.json")
+    ConfusionMatrixDisplay(np.array(measured["confusion_matrix"]), display_labels=["At least 40%", "Below 40%"]).plot()
+    plt.title("OULAD student-disjoint holdout: next submitted assignment")
+    plt.savefig(output / (version + "-confusion-matrix.png"), bbox_inches="tight")
+    plt.close()
+    return metadata
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--demo", action="store_true")
     group.add_argument("--historical-csv", type=Path)
+    group.add_argument("--oulad", action="store_true")
+    parser.add_argument("--output", type=Path, default=ARTIFACTS)
     args = parser.parse_args()
-    data = synthetic() if args.demo else pd.read_csv(args.historical_csv)
-    report = train(data, demo=args.demo)
+    if args.oulad:
+        report = train_oulad(output=args.output)
+    else:
+        data = synthetic() if args.demo else pd.read_csv(args.historical_csv)
+        report = train(data, demo=args.demo, output=args.output)
     print(json.dumps(report, indent=2))

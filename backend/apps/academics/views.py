@@ -7,6 +7,7 @@ from rest_framework import viewsets
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from apps.accounts.scope import Scope
+from apps.accounts.institution import academic_config, require_departments
 from apps.accounts.models import Institute
 from apps.insights.models import Audit
 
@@ -36,6 +37,8 @@ class TenantViewSet(viewsets.ModelViewSet):
 
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)
+        if self.scope.institute and self.scope.institute.kind == "school" and self.model in (Unit, AdmissionBatch):
+            raise PermissionDenied("Schools use classes and sections, without departments or admission batches.")
 
         if (
             self.scope.role == "superadmin"
@@ -51,7 +54,7 @@ class TenantViewSet(viewsets.ModelViewSet):
         # Serialize calendar and schedule edits per institute.
         # Lock during validation and saving to prevent race conditions.
 
-        if self.model not in (
+        if self.model.__name__ != "AttendanceSession" and self.model not in (
             Year,
             Term,
             Offering,
@@ -387,7 +390,7 @@ class OfferingViewSet(EnrollmentActions, TenantViewSet):
                     "previous": previous,
                     "current": current,
                     "administrative_override": (
-                        self.scope.role == "admin"
+                        self.scope.role == "admin" and not academic_config(self.scope.institute)["direct_teacher_assignment"]
                     ),
                     "reason": getattr(
                         serializer,
@@ -469,6 +472,9 @@ class EnrollmentViewSet(TenantViewSet):
 
     offering_path = "offering"
 
+    search_fields = ["student__username", "student__first_name", "student__last_name", "offering__title"]
+    ordering_fields = ["created_at", "student__username", "student__first_name", "student__last_name", "offering__title"]
+
     filterset_fields = [
         "offering",
         "student",
@@ -479,7 +485,7 @@ class EnrollmentViewSet(TenantViewSet):
         if getattr(self, "swagger_fake_view", False):
             return self.model.objects.none()
 
-        qs = super().get_queryset()
+        qs = super().get_queryset().select_related("student", "offering")
 
         if self.scope.role == "student":
             return qs.filter(

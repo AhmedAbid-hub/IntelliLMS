@@ -19,7 +19,7 @@ from .filters import ReportPagination, ReportQuery
 from .gradebook import gradebook
 
 logger = logging.getLogger(__name__)
-WARNING = 'EXPERIMENTAL: trained on synthetic demonstration data; not validated for academic decisions.'
+WARNING = 'EXPERIMENTAL: inspect each result for its dataset, prediction target and model version. Not validated for academic decisions.'
 BATCH_SIZE = 10
 
 
@@ -82,6 +82,8 @@ def start_analysis(request):
     payload = StartInput(data=request.data)
     payload.is_valid(raise_exception=True)
     offering = get_object_or_404(offerings, pk=payload.validated_data['offering'])
+    from .views import require_prediction_instructor
+    require_prediction_instructor(scope, request.user, offering)
     # Serialize starts without using SELECT DISTINCT FOR UPDATE on PostgreSQL.
     Offering.objects.select_for_update().get(pk=offering.pk)
     scope.check_offering(offering, write=True)
@@ -133,30 +135,31 @@ def analysis_items(request, pk):
 
 
 def estimate_row(scope, offering, row, runtime):
-    from ml.inference import infer
-    from ml.train import FEATURES
-    features = {key: row[key] for key in FEATURES}
-    counts = {key: row[key] for key in ['attendance_records', 'graded_assignments', 'graded_quizzes']}
+    from ml.inference import infer, insufficient
+    from .prediction_inputs import prediction_inputs
     metadata = runtime['metadata']
     if metadata['status'] != 'ready':
         return {'status': 'model_unavailable', 'detail': metadata.get('detail', 'Model unavailable.')}
-    if counts['attendance_records'] < 3 or counts['graded_assignments'] + counts['graded_quizzes'] < 2:
-        return {'status': 'insufficient_data', 'detail': 'At least 3 attendance records and 2 released graded assessments are required.', 'counts': counts}
-    digest = hashlib.sha256(json.dumps({'features': features, 'counts': counts,
+    features, counts, evidence = prediction_inputs(offering, row['student'], metadata, row=row)
+    reason = insufficient(metadata, features, counts)
+    if reason:
+        return {'status': 'insufficient_data', 'detail': reason, 'counts': counts}
+    digest = hashlib.sha256(json.dumps({'features': features, 'counts': counts, 'evidence': evidence,
         'version': metadata['version'], 'sha256': metadata['sha256']}, sort_keys=True).encode()).hexdigest()
     saved = Prediction.objects.filter(offering=offering, student_id=row['student'], input_digest=digest).first()
     if saved:
         return {'status': 'ready', 'reused': True, 'probability': saved.probability,
                 'category': saved.category, 'version': saved.version, 'features': saved.features,
-                'warning': saved.warning, 'created_at': saved.created_at.isoformat()}
+                'warning': saved.warning, 'created_at': saved.created_at.isoformat(), **saved.context}
     result = infer(features, counts, runtime=runtime)
     if result['status'] == 'ready':
+        result['observations'] = evidence
         # A model replacement during inference must not bind the new output to the old digest.
         if result['version'] != metadata['version']:
             return {'status': 'failed', 'detail': 'Model changed during analysis; retry this student.'}
         saved, created = Prediction.objects.get_or_create(offering=offering,
             student_id=row['student'], input_digest=digest,
-            defaults={'institute': scope.institute, **{key: result[key] for key in ['probability', 'category', 'version', 'features', 'warning']}})
+            defaults={'institute': scope.institute, 'context': {'model_info': result.get('model_info', {}), 'observations': evidence}, **{key: result[key] for key in ['probability', 'category', 'version', 'features', 'warning']}})
         result.update(created_at=saved.created_at.isoformat(), reused=not created)
     return result
 
@@ -166,6 +169,8 @@ def estimate_row(scope, offering, row, runtime):
 @transaction.atomic
 def advance_analysis(request, pk):
     scope, run = scoped_run(request, pk, lock=True)
+    from .views import require_prediction_instructor
+    require_prediction_instructor(scope, request.user, run.offering)
     # Authorization is re-evaluated on every chunk, including after staff removal.
     scope.check_offering(run.offering, write=True)
     if run.status != 'active':

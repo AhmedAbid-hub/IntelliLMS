@@ -3,10 +3,10 @@ from rest_framework import generics, serializers
 from drf_spectacular.utils import extend_schema
 from apps.accounts.models import User
 from apps.accounts.scope import Scope
-from .filters import ReportPagination
+from .filters import AcademicFilters, ReportPagination, offering_queryset, enrollment_queryset
 
 
-class WorkloadQuery(serializers.Serializer):
+class WorkloadQuery(AcademicFilters):
     search = serializers.CharField(required=False, allow_blank=True, max_length=120)
     term = serializers.UUIDField(required=False)
     unit = serializers.UUIDField(required=False)
@@ -17,22 +17,15 @@ class WorkloadQuery(serializers.Serializer):
 
 def workload_queryset(scope, values=None):
     values = values or {}
-    offerings = scope.offerings()
-    for key, field in [
-        ("offering", "pk"),
-        ("term", "term_id"),
-        ("unit", "course__unit_id"),
-        ("archived", "archived"),
-    ]:
-        if key in values:
-            offerings = offerings.filter(**{field: values[key]})
+    academic_values = {key: value for key, value in values.items() if key != "search"}
+    offerings = offering_queryset(scope, values)
     teachers = (
         User.objects.filter(teaching__in=offerings)
         .annotate(
             courses=Count("teaching", filter=Q(teaching__in=offerings), distinct=True),
             learners=Count(
                 "teaching__enrollments__student",
-                filter=Q(teaching__in=offerings, teaching__enrollments__active=True),
+                filter=Q(teaching__in=offerings, teaching__enrollments__pk__in=enrollment_queryset(scope, academic_values).values("pk")),
                 distinct=True,
             ),
         )

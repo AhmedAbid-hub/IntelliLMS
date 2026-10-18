@@ -198,6 +198,7 @@ REST_FRAMEWORK["EXCEPTION_HANDLER"] = (
 )
 
 SPECTACULAR_SETTINGS["ENUM_NAME_OVERRIDES"] = {
+    "AcademicStructureEnum": [("annual", "Annual"), ("semester", "Semester")],
     "AcademicTargetKindEnum": [
         "submission",
         "attempt",

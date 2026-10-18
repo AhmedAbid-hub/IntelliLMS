@@ -96,4 +96,4 @@ class AccountInvitation(models.Model):
     issued_at = models.DateTimeField()
     expires_at = models.DateTimeField()
     accepted_at = models.DateTimeField(null=True, blank=True)
-    email_status = models.CharField(max_length=12, choices=[("pending", "Pending"), ("sent", "Submitted to mail backend"), ("failed", "Failed")], default="pending")
+    email_status = models.CharField(max_length=12, choices=[("pending", "Sending"), ("accepted", "Submitted to email provider"), ("local", "Captured locally; not delivered"), ("sent", "Legacy backend acceptance; transport unverified"), ("failed", "Email sending failed")], default="pending")

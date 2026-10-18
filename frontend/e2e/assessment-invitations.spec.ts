@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { chooseRelation, createStudentAccount } from "./helpers";
 
 async function login(
   page: Page,
@@ -24,13 +25,7 @@ test("admin invitation → emailed password setup → student login → replay r
   const username = `invite-${Date.now()}`;
   const email = `${username}@example.test`;
   await login(page, "university.admin");
-  await page.goto("/memberships");
-  await page.getByRole("button", { name: "Add person" }).click();
-  await page.getByLabel("Username").fill(username);
-  await page.getByLabel("Email").fill(email);
-  await page.getByRole("dialog").getByLabel("Role", { exact: false }).selectOption("student");
-  await page.getByRole("button", { name: "Create record" }).click();
-  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await createStudentAccount(page, username, email);
   const directory = resolve("../backend/test-results/e2e-mail");
   let resetPath = "";
   await expect
@@ -119,12 +114,8 @@ test("fractional manual assessment → release → student feedback and keyboard
   );
   await page.goto("/manual-grades");
   await page.getByRole("button", { name: "Add new" }).click();
-  await page
-    .getByRole("combobox", { name: "Course offering" })
-    .selectOption(offering.id);
-  await page
-    .getByRole("combobox", { name: "Student" })
-    .selectOption({ label: "university.student" });
+  await chooseRelation(page, "Course offering", offering.title);
+  await chooseRelation(page, "Student", "university.student");
   await page.getByLabel("Title").fill("E2E practical feedback");
   await page.getByLabel("Marks", { exact: false }).first().fill("8.25");
   await page.getByLabel("Maximum marks").fill("10");
@@ -156,7 +147,7 @@ test("fractional manual assessment → release → student feedback and keyboard
     .filter({ hasText: "E2E practical feedback" })
     .getByRole("button", { name: "Review" })
     .click();
-  await expect(page.getByText("8.25 / 10 marks")).toBeVisible();
+  await expect(page.getByText("8.25 / 10", { exact: true })).toBeVisible();
   await expect(
     page.getByText("Explain how you checked the result."),
   ).toBeVisible();
@@ -168,7 +159,7 @@ test("fractional manual assessment → release → student feedback and keyboard
   await expect(page.getByRole("tab", { name: "Materials" })).toBeFocused();
   await expect(page.getByRole("tabpanel", { name: "Materials" })).toBeVisible();
   await page.keyboard.press("End");
-  await expect(page.getByRole("tab", { name: "Modules" })).toBeFocused();
+  await expect(page.getByRole("tab", { name: "My progress" })).toBeFocused();
   await page.keyboard.press("Home");
   await expect(page.getByRole("tab", { name: "Lessons" })).toBeFocused();
 });

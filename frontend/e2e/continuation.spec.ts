@@ -84,7 +84,7 @@ test("platform overview stays accessible after entering an institute", async ({
   await expect(
     page.getByRole("heading", { name: "Platform overview" }),
   ).toBeVisible();
-  await page.locator("tbody a").first().click();
+  await page.getByRole("link", {name:"Northstar University", exact:true}).click();
   await expect(
     page.getByRole("heading", { name: "Institute administrators" }),
   ).toBeVisible();
@@ -96,6 +96,7 @@ test("platform overview stays accessible after entering an institute", async ({
     .click();
   await expect(page).toHaveURL(/memberships/);
   await page
+    .getByRole("navigation", { name: "Platform pages" })
     .getByRole("link", { name: "Platform overview", exact: true })
     .click();
   await expect(
@@ -107,8 +108,8 @@ test("head, teacher and student dashboards expose their permitted workflows", as
   page,
 }) => {
   for (const [role, heading] of [
-    ["head", "Department management"],
-    ["teacher", "Teaching workspace"],
+    ["head", "Department overview"],
+    ["teacher", "Teaching overview"],
     ["student", "My learning"],
   ]) {
     await login(page, `college.${role}`);

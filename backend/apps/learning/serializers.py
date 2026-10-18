@@ -12,6 +12,7 @@ from .models import (
     Quiz,
     Question,
     Attendance,
+    AttendanceSession,
     Announcement,
     ManualGrade,
     BankQuestion,
@@ -98,12 +99,9 @@ def validate_upload(file):
 
 class LearningSerializer(TenantSerializer):
     def get_fields(self):
-        fields=super().get_fields()
-        if "finalized" in fields:fields["finalized"].read_only=True
-        return fields
-
-    def get_fields(self):
         fields = super().get_fields()
+        if "finalized" in fields:
+            fields["finalized"].read_only = True
         if self.Meta.model == Quiz:
             fields["has_attempts"] = serializers.SerializerMethodField()
         return fields
@@ -121,6 +119,10 @@ class LearningSerializer(TenantSerializer):
 
         model = self.Meta.model
         scope = Scope(self.context["request"])
+        if model == AttendanceSession and (not self.instance or "date" in attrs and attrs["date"] != self.instance.date):
+            period = val("offering").term
+            if not period.start <= val("date") <= period.end:
+                raise serializers.ValidationError({"date": "Attendance date must lie within the course's academic period."})
         if "file" in attrs:
             validate_upload(attrs["file"])
         if model in [Lesson, Material]:

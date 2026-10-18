@@ -20,10 +20,14 @@ TERMINOLOGY_KEYS = TERMS | {
 }
 
 GRADING_RULE_KEYS = {
+    "gpa_policy",
     "pass_mark",
+    "progression_policy",
     "bands",
     "quiz_attempt_policy",
     "missing_category_policy",
+    "lock_released_grades",
+    "attendance_edit_window_days",
 }
 
 QUIZ_ATTEMPT_POLICIES = {
@@ -134,6 +138,15 @@ def validate_grading_rules(value):
             "Unsupported grading rule. Use pass_mark, bands and "
             "assessment policies."
         )
+
+    if value.get("progression_policy", "manual_review") not in ("manual_review", "all_required_pass"):
+        raise ValidationError("Choose manual_review or all_required_pass for progression_policy.")
+
+    if "lock_released_grades" in value and not isinstance(value["lock_released_grades"], bool):
+        raise ValidationError("Released-grade protection must be true or false.")
+    days = value.get("attendance_edit_window_days")
+    if days is not None and (isinstance(days, bool) or not isinstance(days, int) or not 0 <= days <= 365):
+        raise ValidationError("Attendance editing window must be a whole number from 0 to 365 days, or null for no time limit.")
 
     pass_mark = value.get("pass_mark", 50)
 
@@ -270,6 +283,15 @@ def validate_grading_rules(value):
         )
 
     # Preserve the original API structure and optional keys.
+    policy = value.get("gpa_policy")
+    if policy is not None:
+        if not isinstance(policy, dict) or set(policy) != {"method", "repeat"}:
+            raise ValidationError("GPA policy requires an explicit method and repeat rule, or null to disable.")
+        if policy["method"] != "credit_weighted" or policy["repeat"] not in ("all", "latest", "best"):
+            raise ValidationError("Choose credit_weighted and an all, latest or best repeated-course policy.")
+        if not cleaned_bands:
+            raise ValidationError("Configure grade bands and points before enabling GPA calculations.")
+
     # Return cleaned bands only when the caller supplied bands.
     cleaned = dict(value)
 

@@ -44,6 +44,7 @@ class ActivityKind(serializers.Serializer):
 
 
 class DashboardResult(serializers.Serializer):
+    structure_counts = serializers.DictField(child=serializers.IntegerField())
     active_courses = serializers.IntegerField()
     students = serializers.IntegerField()
     teachers = serializers.IntegerField()
@@ -61,6 +62,7 @@ class DashboardResult(serializers.Serializer):
 class PlatformResult(serializers.Serializer):
     institutes = serializers.IntegerField()
     active_institutes = serializers.IntegerField()
+    institute_administrators = serializers.IntegerField()
     users = serializers.IntegerField()
     memberships = serializers.IntegerField()
 
@@ -124,6 +126,7 @@ class EvaluationMetrics(serializers.Serializer):
     roc_auc = serializers.FloatField(allow_null=True)
     brier_score = serializers.FloatField()
     confusion_matrix = serializers.ListField(child=serializers.ListField(child=serializers.IntegerField()))
+    average_precision = serializers.FloatField(required=False)
 
 
 class ModelStatusResult(serializers.Serializer):
@@ -144,3 +147,17 @@ class ModelStatusResult(serializers.Serializer):
     thresholds = serializers.DictField(child=serializers.FloatField(), required=False)
     artifact = serializers.CharField(required=False)
     sha256 = serializers.CharField(required=False)
+    target_label = serializers.CharField(required=False)
+    feature_schema = serializers.CharField(required=False)
+    source = serializers.JSONField(required=False)
+    training_configuration = serializers.JSONField(required=False)
+    preprocessing = serializers.CharField(required=False)
+    feature_units = serializers.JSONField(required=False)
+    split_students = serializers.JSONField(required=False)
+    split_positive_rows = serializers.JSONField(required=False)
+    split_hashes = serializers.JSONField(required=False)
+    validation_thresholds = serializers.JSONField(required=False)
+    test_baseline_metrics = serializers.JSONField(required=False)
+    test_majority_metrics = serializers.JSONField(required=False)
+    decision_threshold = serializers.FloatField(required=False)
+    category_note = serializers.CharField(required=False)

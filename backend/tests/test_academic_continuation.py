@@ -13,7 +13,9 @@ def test_program_sections_and_term_aware_scheduling(world, client_for, kind):
     a["institute"].kind = kind
     a["institute"].save()
     client = client_for(a, "admin")
-    program = {"name": "Learning pathway", "unit": str(a["unit"].pk)}
+    program = {"name": "Learning pathway"}
+    if kind != "school":
+        program["unit"] = str(a["unit"].pk)
     result = client.post("/api/v1/programs/", program)
     assert result.status_code == 201
     assert client.post("/api/v1/programs/", program).status_code == 400

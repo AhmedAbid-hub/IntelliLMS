@@ -1,4 +1,5 @@
 
+import { createPortal } from "react-dom";
 import {
   useEffect,
   useId,
@@ -59,6 +60,8 @@ export function RelationSelect({
   const searchRef = useRef<HTMLInputElement>(null);
   const nativeRef = useRef<HTMLSelectElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({});
 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -141,7 +144,8 @@ export function RelationSelect({
     function handlePointerDown(event: PointerEvent) {
       if (
         rootRef.current &&
-        !rootRef.current.contains(event.target as Node)
+        !rootRef.current.contains(event.target as Node) &&
+        !popoverRef.current?.contains(event.target as Node)
       ) {
         setOpen(false);
         onBlur?.();
@@ -157,6 +161,49 @@ export function RelationSelect({
       );
     };
   }, [open, onBlur]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const reposition = () => {
+      const trigger = triggerRef.current;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const dialog = rootRef.current?.closest<HTMLElement>('[role="dialog"]');
+      const bounds = dialog?.getBoundingClientRect();
+      // Stay inside the modal's focus/pointer boundary and visible scroll area.
+      const topEdge = Math.max(0, bounds?.top ?? 0);
+      const bottomEdge = Math.min(window.innerHeight, bounds?.bottom ?? window.innerHeight);
+      const leftEdge = Math.max(0, bounds?.left ?? 0);
+      const rightEdge = Math.min(window.innerWidth, bounds?.right ?? window.innerWidth);
+      const gap = 6;
+      const availableBelow = bottomEdge - rect.bottom - gap - 8;
+      const availableAbove = rect.top - topEdge - gap - 8;
+      const placeAbove = availableBelow < 260 && availableAbove > availableBelow;
+      const maxHeight = Math.max(0, Math.min(380, placeAbove ? availableAbove : availableBelow));
+      const width = Math.min(rect.width, rightEdge - leftEdge - 16);
+      const left = Math.max(leftEdge + 8, Math.min(rect.left, rightEdge - width - 8));
+      const top = placeAbove ? rect.top - gap : rect.bottom + gap;
+      setPopoverStyle({
+        position: dialog ? "absolute" : "fixed",
+        left: left - (bounds?.left ?? 0) + (dialog?.scrollLeft ?? 0) - (dialog?.clientLeft ?? 0),
+        top: top - (bounds?.top ?? 0) + (dialog?.scrollTop ?? 0) - (dialog?.clientTop ?? 0),
+        width,
+        transform: placeAbove ? "translateY(-100%)" : undefined,
+        maxHeight,
+        overflowY: "auto",
+        zIndex: 10000,
+      });
+    };
+
+    reposition();
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -421,8 +468,8 @@ export function RelationSelect({
       )}
 
       {/* Dropdown menu */}
-      {open && (
-        <div className="relation-modern-popover">
+      {open && createPortal(
+        <div ref={popoverRef} className="relation-modern-popover" style={popoverStyle}>
           <div className="relation-modern-search">
             <Search size={17} aria-hidden="true" />
 
@@ -556,7 +603,8 @@ export function RelationSelect({
               </button>
             </div>
           )}
-        </div>
+        </div>,
+        rootRef.current?.closest('[role="dialog"]') ?? document.body
       )}
     </div>
   );

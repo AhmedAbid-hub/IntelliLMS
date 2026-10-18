@@ -8,8 +8,10 @@ import {
 
 import { api, post, type Page } from "../../lib/api";
 import { Button } from "../../components/ui/button";
+import { Dialog } from "../../components/ui/dialog";
 import { RelationSelect } from "../../components/RelationSelect";
 import { Pagination } from "../../components/ReportControls";
+import { PredictionContext } from "./PredictionContext";
 import {
   ErrorState,
   Loading,
@@ -38,6 +40,9 @@ type AnalysisResult = {
   created_at?: string;
   reused?: boolean;
   academic?: AcademicIndicators;
+  warning?: string;
+  model_info?: Record<string, unknown>;
+  observations?: Record<string, unknown>;
 };
 
 type Item = {
@@ -235,8 +240,10 @@ function RiskEstimate({ item }: { item: Item }) {
 
 export function ClassAnalysis({
   offering,
+  canGenerate = true,
 }: {
   offering?: string;
+  canGenerate?: boolean;
 }) {
   const client = useQueryClient();
 
@@ -246,6 +253,7 @@ export function ClassAnalysis({
   const [error, setError] = useState<unknown>();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [detail, setDetail] = useState<Item | null>(null);
 
   const stop = useRef(false);
   const mounted = useRef(true);
@@ -466,7 +474,7 @@ export function ClassAnalysis({
         }}
       >
         <Button
-          disabled={busy || !course}
+          disabled={busy || !course || !canGenerate}
           onClick={analyze}
         >
           {busy
@@ -487,6 +495,7 @@ export function ClassAnalysis({
           </Button>
         )}
       </div>
+      {!canGenerate && <p className="muted">Read-only oversight. Assigned instructors generate estimates from their teaching workspace; saved results are available below.</p>}
 
       {!!error && (
         <div style={{ marginTop: 14 }}>
@@ -654,6 +663,7 @@ export function ClassAnalysis({
 
                         <td>
                           <RiskEstimate item={item} />
+                          {item.status === "ready" && <Button variant="outline" onClick={() => setDetail(item)}>Prediction basis</Button>}
                         </td>
 
                         <td>
@@ -694,6 +704,10 @@ export function ClassAnalysis({
           </div>
         </>
       )}
+      {detail && <Dialog open onOpenChange={() => setDetail(null)} title="Prediction basis">
+        <p><strong>{detail.student_label}</strong> · {detail.result.version} · {formatDateTime(detail.result.created_at)}</p>
+        <PredictionContext info={detail.result.model_info} warning={detail.result.warning} observations={detail.result.observations} />
+      </Dialog>}
     </section>
   );
 }

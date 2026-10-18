@@ -12,6 +12,7 @@ dist/
 private-media/
 staticfiles/
 backend/ml/artifacts/*.joblib
+backend/ml/data/
 playwright-report/
 test-results/
 *.log

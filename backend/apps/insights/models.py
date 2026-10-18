@@ -27,6 +27,7 @@ class Prediction(TenantModel):
     features = models.JSONField()
     warning = models.TextField()
     input_digest = models.CharField(max_length=64, blank=True)
+    context = models.JSONField(default=dict, blank=True)
 
     class Meta:
         constraints = [models.UniqueConstraint(

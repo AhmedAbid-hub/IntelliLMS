@@ -13,7 +13,7 @@ export function WorkspaceRoute({ children }: { children: ReactNode }) {
         <p>Choose an active institute in the sidebar to open this workspace.</p>
       </section>
     );
-  if (!routeAllowed(pathname, role))
+  if (!routeAllowed(pathname, role, user?.institute_profile?.kind))
     return <Navigate to="/unauthorized" replace />;
   return <>{children}</>;
 }

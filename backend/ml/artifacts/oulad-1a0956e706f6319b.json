@@ -1,0 +1,315 @@
+{
+  "version": "oulad-1a0956e706f6319b",
+  "target": "next_submitted_assignment_below_40",
+  "target_label": "Next submitted assignment score below 40%",
+  "features": [
+    "previous_assignment_pct",
+    "latest_assignment_pct"
+  ],
+  "feature_schema": "oulad-tma-sequence-v1",
+  "mode": "external_public",
+  "warning": "EXPERIMENTAL \u2014 evaluated on external public OULAD data, not validated on IntelliLMS students. Conditional on submitting another assignment; not course failure or dropout.",
+  "selected_model": "gradient_boosting",
+  "seed": 42,
+  "rows": 50815,
+  "source": {
+    "name": "Open University Learning Analytics Dataset (OULAD)",
+    "source_url": "https://doi.org/10.6084/m9.figshare.5081998.v1",
+    "download_url": "https://ndownloader.figshare.com/files/8606371",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "citation": "Kuzilek, Hlosta & Zdrahal (2017), Scientific Data 4:170171, doi:10.1038/sdata.2017.171",
+    "archive_md5": "7412686fd77cf0e0ee1e8c3e9b354308",
+    "archive_sha256": "90dda45037939953f979072fa70a809ebe07e90ec783c408762af7698a3825ec",
+    "raw_assessment_rows": 206,
+    "raw_student_assessment_rows": 173912,
+    "usable_tma_scores": 96916,
+    "snapshot_rows": 50815,
+    "unique_students": 18136,
+    "positive_rows": 3098,
+    "transformation": "Two preceding non-banked TMA scores ordered by deadline; target next submitted TMA score <40. Strict earlier submission/deadline cutoff; no demographics, final results, exams, CMA, clicks or attendance.",
+    "limitations": "Score release timestamps are absent in OULAD; historical availability after submission/deadline is an assumption. Live inference requires released scores. Non-submitters/withdrawal are not negative outcomes. Same-source holdout is not local, temporal or institution-external validation."
+  },
+  "training_configuration": {
+    "schema": "oulad-tma-sequence-v1",
+    "seed": 42,
+    "validation_seed": 43,
+    "sklearn": "1.9.1",
+    "selection": "Validation F1, tie break lower Brier; threshold grid 0.05..0.50 step 0.01; refit train+validation; held-out test once",
+    "candidate_parameters": {
+      "prevalence_baseline": {
+        "memory": "None",
+        "steps": "[('simpleimputer', SimpleImputer(strategy='median')), ('dummyclassifier', DummyClassifier())]",
+        "transform_input": "None",
+        "verbose": "False",
+        "simpleimputer": "SimpleImputer(strategy='median')",
+        "dummyclassifier": "DummyClassifier()",
+        "simpleimputer__add_indicator": "False",
+        "simpleimputer__copy": "True",
+        "simpleimputer__fill_value": "None",
+        "simpleimputer__keep_empty_features": "False",
+        "simpleimputer__missing_values": "nan",
+        "simpleimputer__strategy": "median",
+        "dummyclassifier__constant": "None",
+        "dummyclassifier__random_state": "None",
+        "dummyclassifier__strategy": "prior"
+      },
+      "logistic_regression": {
+        "memory": "None",
+        "steps": "[('simpleimputer', SimpleImputer(strategy='median')), ('standardscaler', StandardScaler()), ('logisticregression', LogisticRegression(max_iter=1000, random_state=42))]",
+        "transform_input": "None",
+        "verbose": "False",
+        "simpleimputer": "SimpleImputer(strategy='median')",
+        "standardscaler": "StandardScaler()",
+        "logisticregression": "LogisticRegression(max_iter=1000, random_state=42)",
+        "simpleimputer__add_indicator": "False",
+        "simpleimputer__copy": "True",
+        "simpleimputer__fill_value": "None",
+        "simpleimputer__keep_empty_features": "False",
+        "simpleimputer__missing_values": "nan",
+        "simpleimputer__strategy": "median",
+        "standardscaler__copy": "True",
+        "standardscaler__with_mean": "True",
+        "standardscaler__with_std": "True",
+        "logisticregression__C": "1.0",
+        "logisticregression__class_weight": "None",
+        "logisticregression__dual": "False",
+        "logisticregression__fit_intercept": "True",
+        "logisticregression__intercept_scaling": "1",
+        "logisticregression__l1_ratio": "0.0",
+        "logisticregression__max_iter": "1000",
+        "logisticregression__n_jobs": "None",
+        "logisticregression__penalty": "deprecated",
+        "logisticregression__random_state": "42",
+        "logisticregression__solver": "lbfgs",
+        "logisticregression__tol": "0.0001",
+        "logisticregression__verbose": "0",
+        "logisticregression__warm_start": "False"
+      },
+      "random_forest": {
+        "memory": "None",
+        "steps": "[('simpleimputer', SimpleImputer(strategy='median')), ('randomforestclassifier', RandomForestClassifier(max_depth=6, min_samples_leaf=30, n_estimators=200,\n                       n_jobs=1, random_state=42))]",
+        "transform_input": "None",
+        "verbose": "False",
+        "simpleimputer": "SimpleImputer(strategy='median')",
+        "randomforestclassifier": "RandomForestClassifier(max_depth=6, min_samples_leaf=30, n_estimators=200,\n                       n_jobs=1, random_state=42)",
+        "simpleimputer__add_indicator": "False",
+        "simpleimputer__copy": "True",
+        "simpleimputer__fill_value": "None",
+        "simpleimputer__keep_empty_features": "False",
+        "simpleimputer__missing_values": "nan",
+        "simpleimputer__strategy": "median",
+        "randomforestclassifier__bootstrap": "True",
+        "randomforestclassifier__ccp_alpha": "0.0",
+        "randomforestclassifier__class_weight": "None",
+        "randomforestclassifier__criterion": "gini",
+        "randomforestclassifier__max_depth": "6",
+        "randomforestclassifier__max_features": "sqrt",
+        "randomforestclassifier__max_leaf_nodes": "None",
+        "randomforestclassifier__max_samples": "None",
+        "randomforestclassifier__min_impurity_decrease": "0.0",
+        "randomforestclassifier__min_samples_leaf": "30",
+        "randomforestclassifier__min_samples_split": "2",
+        "randomforestclassifier__min_weight_fraction_leaf": "0.0",
+        "randomforestclassifier__monotonic_cst": "None",
+        "randomforestclassifier__n_estimators": "200",
+        "randomforestclassifier__n_jobs": "1",
+        "randomforestclassifier__oob_score": "False",
+        "randomforestclassifier__random_state": "42",
+        "randomforestclassifier__verbose": "0",
+        "randomforestclassifier__warm_start": "False"
+      },
+      "gradient_boosting": {
+        "memory": "None",
+        "steps": "[('simpleimputer', SimpleImputer(strategy='median')), ('histgradientboostingclassifier', HistGradientBoostingClassifier(l2_regularization=1, max_leaf_nodes=7,\n                               min_samples_leaf=40, random_state=42))]",
+        "transform_input": "None",
+        "verbose": "False",
+        "simpleimputer": "SimpleImputer(strategy='median')",
+        "histgradientboostingclassifier": "HistGradientBoostingClassifier(l2_regularization=1, max_leaf_nodes=7,\n                               min_samples_leaf=40, random_state=42)",
+        "simpleimputer__add_indicator": "False",
+        "simpleimputer__copy": "True",
+        "simpleimputer__fill_value": "None",
+        "simpleimputer__keep_empty_features": "False",
+        "simpleimputer__missing_values": "nan",
+        "simpleimputer__strategy": "median",
+        "histgradientboostingclassifier__categorical_features": "from_dtype",
+        "histgradientboostingclassifier__class_weight": "None",
+        "histgradientboostingclassifier__early_stopping": "auto",
+        "histgradientboostingclassifier__interaction_cst": "None",
+        "histgradientboostingclassifier__l2_regularization": "1",
+        "histgradientboostingclassifier__learning_rate": "0.1",
+        "histgradientboostingclassifier__loss": "log_loss",
+        "histgradientboostingclassifier__max_bins": "255",
+        "histgradientboostingclassifier__max_depth": "None",
+        "histgradientboostingclassifier__max_features": "1.0",
+        "histgradientboostingclassifier__max_iter": "100",
+        "histgradientboostingclassifier__max_leaf_nodes": "7",
+        "histgradientboostingclassifier__min_samples_leaf": "40",
+        "histgradientboostingclassifier__monotonic_cst": "None",
+        "histgradientboostingclassifier__n_iter_no_change": "10",
+        "histgradientboostingclassifier__random_state": "42",
+        "histgradientboostingclassifier__scoring": "loss",
+        "histgradientboostingclassifier__tol": "1e-07",
+        "histgradientboostingclassifier__validation_fraction": "0.1",
+        "histgradientboostingclassifier__verbose": "0",
+        "histgradientboostingclassifier__warm_start": "False"
+      }
+    },
+    "code_sha256": "044204a5ba8c7ebbd21ee80cc47ceb2f28f11958ec31d04f4d5ae5e4e303172e"
+  },
+  "preprocessing": "Complete observed score pairs only; train-fitted median imputer (defensive) and StandardScaler for logistic regression; live missing scores rejected, never imputed.",
+  "feature_units": {
+    "previous_assignment_pct": "Recorded assignment marks / maximum marks * 100",
+    "latest_assignment_pct": "Recorded assignment marks / maximum marks * 100"
+  },
+  "split_sizes": {
+    "train": 30485,
+    "validation": 10176,
+    "test": 10154
+  },
+  "split_students": {
+    "train": 10881,
+    "validation": 3627,
+    "test": 3628
+  },
+  "split_positive_rows": {
+    "train": 1864,
+    "validation": 642,
+    "test": 592
+  },
+  "split_hashes": {
+    "train": "64bacf63d686415d5df0fe02c900431fe5cb5065fde288372043618c4ca8eb05",
+    "validation": "844f90546cf0851af5ac958e6dcde8ee7762a495d238170ff7fdf666f9877877",
+    "test": "e03350dd79fd7f4f85391ef7842cc4879c17f61ff520087ae2217f7626169a0c"
+  },
+  "split_strategy": "Student-group-disjoint seeded 60/20/20; repeated students across courses remain in one partition. No temporal/institution holdout claim.",
+  "validation_metrics": {
+    "prevalence_baseline": {
+      "accuracy": 0.06308962264150944,
+      "precision": 0.06308962264150944,
+      "recall": 1.0,
+      "f1": 0.11869107043815863,
+      "roc_auc": 0.5,
+      "brier_score": 0.059113104393067835,
+      "confusion_matrix": [
+        [
+          0,
+          9534
+        ],
+        [
+          0,
+          642
+        ]
+      ],
+      "average_precision": 0.06308962264150944
+    },
+    "logistic_regression": {
+      "accuracy": 0.9250196540880503,
+      "precision": 0.3989983305509182,
+      "recall": 0.37227414330218067,
+      "f1": 0.3851732473811442,
+      "roc_auc": 0.8148432695707182,
+      "brier_score": 0.05024226072872317,
+      "confusion_matrix": [
+        [
+          9174,
+          360
+        ],
+        [
+          403,
+          239
+        ]
+      ],
+      "average_precision": 0.31531238759836666
+    },
+    "random_forest": {
+      "accuracy": 0.9142099056603774,
+      "precision": 0.35398230088495575,
+      "recall": 0.43613707165109034,
+      "f1": 0.39078855547801816,
+      "roc_auc": 0.8221789601014765,
+      "brier_score": 0.049544223725156586,
+      "confusion_matrix": [
+        [
+          9023,
+          511
+        ],
+        [
+          362,
+          280
+        ]
+      ],
+      "average_precision": 0.330899732190174
+    },
+    "gradient_boosting": {
+      "accuracy": 0.9153891509433962,
+      "precision": 0.3590733590733591,
+      "recall": 0.43457943925233644,
+      "f1": 0.39323467230443976,
+      "roc_auc": 0.8222944673498422,
+      "brier_score": 0.049342300628387584,
+      "confusion_matrix": [
+        [
+          9036,
+          498
+        ],
+        [
+          363,
+          279
+        ]
+      ],
+      "average_precision": 0.32865733906196615
+    }
+  },
+  "validation_thresholds": {
+    "prevalence_baseline": 0.05,
+    "logistic_regression": 0.22,
+    "random_forest": 0.19,
+    "gradient_boosting": 0.2
+  },
+  "test_metrics": {
+    "accuracy": 0.9199330313177073,
+    "precision": 0.3353204172876304,
+    "recall": 0.38006756756756754,
+    "f1": 0.35629453681710216,
+    "roc_auc": 0.8214883696444824,
+    "brier_score": 0.047015977405118634,
+    "confusion_matrix": [
+      [
+        9116,
+        446
+      ],
+      [
+        367,
+        225
+      ]
+    ],
+    "average_precision": 0.30557060762309707
+  },
+  "test_baseline_metrics": {
+    "accuracy": 0.05830214693716762,
+    "precision": 0.05830214693716762,
+    "recall": 1.0,
+    "f1": 0.11018053229108506,
+    "roc_auc": 0.5,
+    "brier_score": 0.054914091450000535,
+    "confusion_matrix": [
+      [
+        0,
+        9562
+      ],
+      [
+        0,
+        592
+      ]
+    ]
+  },
+  "decision_threshold": 0.2,
+  "thresholds": {
+    "moderate": 0.2,
+    "high": 0.4
+  },
+  "category_note": "Exploratory support bands, not validated intervention cutoffs; classification threshold selected only on validation data.",
+  "artifact": "oulad-1a0956e706f6319b.joblib",
+  "sha256": "6051d73c7e6c145405501b1d79c122afb6cac7d9db0f0d5437d7b67836b94191"
+}

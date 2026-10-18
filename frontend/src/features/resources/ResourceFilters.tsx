@@ -1,4 +1,5 @@
 
+import { useInstitution } from "../../lib/institution";
 import { useAuth } from "../auth/Auth";
 import { RelationSelect } from "../../components/RelationSelect";
 import { useTerminology } from "../../lib/terminology";
@@ -397,9 +398,11 @@ export function ResourceFilters({
 }) {
   const terms = useTerminology();
   const { role } = useAuth();
+  const institution = useInstitution();
 
   const filters = (fields[resource] || []).filter(
     (field) =>
+      (institution.kind !== "school" || !["unit", "batch"].includes(field.key)) &&
       !(
         resource === "memberships" &&
         role === "superadmin" &&
@@ -522,7 +525,7 @@ export function ResourceFilters({
               >
                 <option value="">All</option>
 
-                {(field.choices || []).map(
+                {(field.choices || []).filter(([key]) => institution.departments || key !== "head").map(
                   ([key, text]) => (
                     <option
                       value={key}

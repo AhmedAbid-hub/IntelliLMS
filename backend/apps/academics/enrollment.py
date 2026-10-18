@@ -10,6 +10,7 @@ from drf_spectacular.utils import extend_schema
 from apps.accounts.models import Membership, Institute
 from apps.insights.models import Audit
 from .models import Enrollment
+from .eligibility import validate_enrollment
 
 
 class Candidate(serializers.ModelSerializer):
@@ -68,6 +69,8 @@ class EnrollmentActions:
             members = members.filter(unit_id=self.scope.membership.unit_id)
         if members.count() != len(ids):
             raise ValidationError("Every selected student must have an active membership in your permitted scope.")
+        if data["operation"] != "withdraw":
+            validate_enrollment(self.scope, offering, members)
         existing = {row.student_id: row for row in Enrollment.objects.filter(offering=offering, student_id__in=ids)}
         if data["operation"] != "enroll" and ids - existing.keys():
             raise ValidationError("Withdraw/reactivate only students with an existing enrollment.")

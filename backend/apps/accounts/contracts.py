@@ -28,6 +28,10 @@ class SelectInstituteInput(serializers.Serializer):
     institute_id = serializers.UUIDField()
 
 
+class SelectWorkspaceInput(serializers.Serializer):
+    academic_workspace = serializers.ChoiceField(choices=["department", "teaching"])
+
+
 class PasswordChangeInput(serializers.Serializer):
     old_password = Text(max_length=4096, trim_whitespace=False, write_only=True)
     new_password = Text(max_length=4096, trim_whitespace=False, write_only=True)
@@ -52,9 +56,11 @@ class IdentityMembership(serializers.Serializer):
     institute__name = serializers.CharField()
     role = serializers.ChoiceField(choices=Membership.ROLES)
     unit_id = serializers.UUIDField(allow_null=True)
+    can_teach = serializers.BooleanField()
 
 
 class InstituteProfile(serializers.Serializer):
+    academic_config = serializers.DictField()
     name = serializers.CharField()
     kind = serializers.CharField()
     terminology = serializers.DictField(child=serializers.CharField())
@@ -62,6 +68,7 @@ class InstituteProfile(serializers.Serializer):
 
 
 class IdentityResult(serializers.Serializer):
+    academic_workspace = serializers.ChoiceField(choices=["department", "teaching"])
     avatar_url = serializers.CharField(allow_null=True)
     notify_academic = serializers.BooleanField()
     id = serializers.UUIDField()

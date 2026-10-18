@@ -23,10 +23,14 @@ type Band = {
 };
 
 type Rules = {
+  gpa_policy?: {method: string; repeat: string} | null;
   pass_mark?: number;
+  progression_policy?: string;
   bands?: Band[];
   quiz_attempt_policy?: string;
   missing_category_policy?: string;
+  lock_released_grades?: boolean;
+  attendance_edit_window_days?: number | null;
 };
 
 type GradingPreset =
@@ -216,7 +220,7 @@ function SettingsForm({
   const rules = (institute.grading_rules || {}) as Rules;
 
   const [labels, setLabels] = useState<Record<string, string>>(
-    (institute.terminology || {}) as Record<string, string>,
+    { ...(institute.kind && institute.kind !== "other" ? terminologyPreset(String(institute.kind)) : {}), ...((institute.terminology || {}) as Record<string, string>) },
   );
 
   const [terminologyChoice, setTerminologyChoice] = useState(
@@ -368,7 +372,13 @@ function SettingsForm({
         body: JSON.stringify({
           name: form.get("name"),
           terminology,
+          policy_change_reason: form.get("policy_change_reason"),
           grading_rules: {
+            ...rules,
+            ...(institute.kind === "university" ? {gpa_policy: form.get("gpa_repeat") ? {method: "credit_weighted", repeat: form.get("gpa_repeat")} : null} : {}),
+            progression_policy: form.get("progression_policy"),
+            lock_released_grades: form.get("lock_released_grades") === "on",
+            attendance_edit_window_days: String(form.get("attendance_edit_window_days") || "").trim() === "" ? null : Number(form.get("attendance_edit_window_days")),
             pass_mark: passMark,
             bands: bands.map((band) => ({
               label: band.label.trim(),
@@ -420,6 +430,12 @@ function SettingsForm({
         </label>
 
         <h2>Academic terminology</h2>
+        <label>Progression approval policy
+          <select name="progression_policy" defaultValue={rules.progression_policy || "manual_review"}>
+            <option value="manual_review">Administrator reviews academic evidence</option>
+            <option value="all_required_pass">Require passing results for every required subject</option>
+          </select>
+        </label>
 
         <p className="muted">
           These names appear in academic pages, forms and
@@ -589,6 +605,26 @@ function SettingsForm({
             </select>
           </label>
         </div>
+
+        <h2>Academic protection policies</h2>
+        <p className="muted">These policies protect future edits. Existing marks, attendance and finalization history are retained. Independent corrections and reasoned emergency overrides remain available.</p>
+        <div className="form-grid">
+          <label className="checkbox-label"><input type="checkbox" name="lock_released_grades" defaultChecked={rules.lock_released_grades ?? false} onChange={() => setSaved(false)} />Require an audited correction for released grades</label>
+          <label>Attendance editing window (days)<input type="number" name="attendance_edit_window_days" min="0" max="365" step="1" defaultValue={rules.attendance_edit_window_days ?? ""} onChange={() => setSaved(false)} /><span className="muted">Blank: no time limit. Zero: same-day edits only. Older records require corrections.</span></label>
+          <label>Reason for protection policy change<textarea name="policy_change_reason" maxLength={1000} placeholder="Required when changing protection or GPA policy" onChange={() => setSaved(false)} /></label>
+        </div>
+
+        {institute.kind === "university" && <section aria-label="Configured GPA policy">
+          <h2>GPA and CGPA policy</h2>
+          <p>Enable only when your institution uses credit-weighted grade points. The calculation divides the sum of credits × configured grade points by included credits. Failed released results are included. Missing credits and unreleased results are excluded and listed. These remain provisional calculations using current settings.</p>
+          <label>Repeated courses in GPA / CGPA<select name="gpa_repeat" defaultValue={rules.gpa_policy?.repeat || ""} onChange={() => setSaved(false)}>
+            <option value="">Disabled — no GPA policy configured</option>
+            <option value="all">Credit weighted — include every released attempt</option>
+            <option value="latest">Credit weighted — latest released attempt per subject</option>
+            <option value="best">Credit weighted — best released grade points per subject</option>
+          </select></label>
+          <p className="muted">Configure the letter-grade points and each subject's credit hours below before enabling this policy. Record the reason for changing it above. Program totals remain separate.</p>
+        </section>}
 
         <h2>Letter grades and points</h2>
 

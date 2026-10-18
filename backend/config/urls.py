@@ -1,3 +1,5 @@
+from apps.academics.progression import progress_student, ProgressionHistory, AcademicHistory
+from apps.insights.academic_results import student_results
 from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import path, include
@@ -69,6 +71,12 @@ urlpatterns = [
     path("ready/", readiness),
     path("api/v1/academic-control/",record_control),
     path("api/v1/academic-control/finalize/",finalize_record),
+    path("api/v1/academic-history/", AcademicHistory.as_view()),
+    path("api/v1/academic-decisions/", ProgressionHistory.as_view()),
+    path("api/v1/academic-results/", student_results),
+    path("api/v1/memberships/<uuid:pk>/academic-results/", student_results),
+    path("api/v1/memberships/<uuid:pk>/progress/", progress_student),
+    path("api/v1/memberships/<uuid:pk>/progression-history/", ProgressionHistory.as_view()),
     path("api/v1/admissions/", admit_student),
     path("api/v1/admissions/offerings/", AdmissionSuggestions.as_view()),
     path("api/v1/memberships/<uuid:pk>/placements/", PlacementHistory.as_view()),
@@ -81,6 +89,7 @@ urlpatterns = [
     path("api/v1/auth/me/", auth.me),
     path("api/v1/auth/avatar/", avatar),
     path("api/v1/auth/select-institute/", auth.select_institute),
+    path("api/v1/auth/select-workspace/", auth.select_workspace),
     path("api/v1/auth/password-change/", auth.password_change),
     path("api/v1/auth/password-reset/", auth.password_reset),
     path("api/v1/auth/password-confirm/", auth.password_confirm),
@@ -99,6 +108,8 @@ urlpatterns += [
 
 from apps.insights.reporting import trends, risk_summary
 from apps.insights.workload import WorkloadView
+from apps.insights.course_reports import CourseComparisonView
+from apps.insights.learner_progress import learner_progress
 from apps.insights.batch import start_analysis, analysis_detail, analysis_items, advance_analysis
 from apps.insights.agenda import student_agenda
 
@@ -109,6 +120,8 @@ urlpatterns += [
     path("api/v1/class-analysis/<uuid:pk>/items/", analysis_items),
     path("api/v1/class-analysis/<uuid:pk>/advance/", advance_analysis),
     path("api/v1/analytics/workload/", WorkloadView.as_view()),
+    path("api/v1/analytics/courses/", CourseComparisonView.as_view()),
+    path("api/v1/analytics/learner-progress/", learner_progress),
     path("api/v1/analytics/trends/", trends),
     path("api/v1/predictions/summary/", risk_summary),
 ]

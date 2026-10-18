@@ -16,8 +16,11 @@ import {
 } from "lucide-react";
 
 import { Workload } from "./Workload";
+import { CourseComparisons } from "./CourseComparisons";
 import { StudentPriorities } from "./StudentPriorities";
 import { useAuth } from "../auth/Auth";
+import { useInstitution } from "../../lib/institution";
+import { ReportFilters, reportParams } from "../../components/ReportControls";
 import {
   api,
   display,
@@ -1158,11 +1161,14 @@ function ProgressOverview({
   data,
   role,
   offering,
+  filters = {},
 }: {
   data: TrendsData;
   role: string;
   offering?: string;
+  filters?: Record<string, string>;
 }) {
+  const institution = useInstitution();
   const activityTotal = data.activity.reduce(
     (sum, point) =>
       sum +
@@ -1324,7 +1330,7 @@ function ProgressOverview({
         />
       </div>
 
-      {!offering && (
+      {!offering && institution.departments && (
         <div style={{ marginBottom: 20 }}>
           <DepartmentOverview
             departments={data.departments}
@@ -1333,7 +1339,7 @@ function ProgressOverview({
       )}
 
       {role !== "student" && !offering && (
-        <Workload />
+        <Workload key={reportParams(filters)} filters={filters} />
       )}
     </>
   );
@@ -1459,18 +1465,20 @@ export function Trends({
   const isTeacher = role === "teacher";
 
   const [view, setView] = useState<
-    "overview" | "classes"
+    "overview" | "classes" | "comparisons"
   >(
     isAdmin ? "overview" : "classes",
   );
 
   const [selectedClass, setSelectedClass] =
     useState<SelectedClass | null>(null);
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const params = reportParams(filters);
 
   const overviewQuery = useQuery({
-    queryKey: ["trends", "overview"],
+    queryKey: ["trends", "overview", params],
     queryFn: () =>
-      api<TrendsData>("analytics/trends/"),
+      api<TrendsData>(`analytics/trends/?${params}`),
     enabled:
       !offering &&
       !selectedClass &&
@@ -1565,10 +1573,12 @@ export function Trends({
             />
             Browse classes
           </Button>
+          <Button variant={view === "comparisons" ? "default" : "outline"} onClick={() => { setView("comparisons"); setSelectedClass(null); }}>Compare courses</Button>
         </div>
       )}
 
-      {fixedClass ? (
+      {!fixedClass && (isStudent || view === "overview") && <ReportFilters value={filters} onChange={setFilters} showSearch={false} />}
+      {!isStudent && view === "comparisons" && !fixedClass ? <CourseComparisons /> : fixedClass ? (
         <ClassProgress
           key={fixedClass.id}
           selected={fixedClass}
@@ -1590,6 +1600,7 @@ export function Trends({
           <ProgressOverview
             data={overviewQuery.data}
             role={role}
+            filters={filters}
           />
         )
       ) : (

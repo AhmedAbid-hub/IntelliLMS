@@ -87,6 +87,6 @@ def import_people(request, serializer_class):
     for username, email, first_name, metadata in validated:
         user = User.objects.create_user(username=username, email=email, first_name=first_name, password=None)
         Membership.objects.create(user=user, institute=scope.institute, **metadata)
-        transaction.on_commit(lambda u=user: send_invitation(u))
+        send_invitation(user)
     Audit.objects.create(institute=scope.institute, actor=request.user, action='Membership.import', object_id=str(scope.institute.pk), detail={'count': len(validated)})
     return Response({'created': len(validated), 'errors': [], 'preview': [], 'would_create': len(validated)}, status=201)

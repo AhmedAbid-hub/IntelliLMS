@@ -22,7 +22,28 @@ Each requirement below describes implemented behavior; broader original requirem
 | FR16 | Audience-scoped announcements and personal notifications | Learning notification APIs |
 | FR17 | Idempotent upcoming-deadline reminders | notify_deadlines management command |
 | FR18 | Course/institute/department scope reports and CSV export | insights services/views |
-| FR19 | Synthetic and historical CSV model training, evaluation and trusted inference | ml/train.py and ml/inference.py |
+| FR19 | Public OULAD sequence training/evaluation and schema-checked trusted inference; legacy synthetic/historical compatibility | ml/train.py and ml/inference.py |
 | FR20 | Fictional demonstration data and automated workflow verification | seed_demo, pytest, Vitest, Playwright |
 
 Academic terms are configurable date intervals; programs and sections model school grades and college/university structures. Question banks copy into quizzes instead of creating mutable shared live exam questions. Manual assessment weighting defaults to zero until explicitly configured; weights must total 100.
+
+
+## Current architecture extensions
+
+FR21: institution-type policy and adaptive workflows (school annual classes/direct assignments, college configurable annual study years, university configurable semesters/cohorts).
+
+FR22: reviewed, audited and history-preserving progression/repetition/correction/withdrawal/completion/graduation, with stale-evidence protection and human-authorized policy.
+
+FR23: learner self-only released history and captured decisions; complete program evidence is private to learner/Admin.
+
+FR24: explicit configured provisional university credit-weighted GPA/CGPA, repeat rules, separate programs and disclosed exclusions; no universal grading scale is assumed.
+
+FR25: institution-aware year/class/program/section/subject/course/study-year/batch/period reporting and scoped aggregate dashboards.
+
+FR26: compatible periods, immutable academic relationships, protected calendar attendance boundaries and used program stages.
+
+See [the current acceptance matrix](completion-acceptance.md) for verification and remaining assurance; prior original-scope documents do not override the active architecture request.
+
+## FR27 — Public-data student performance prediction
+
+Reuse individual estimates, prediction history, Analyze Class and authorized teacher workflows. Train reproducibly on license-verified real public data with student-group separation, compatible observed features, validation-only model/threshold selection, a simple baseline and measured holdout metrics. The implemented target is next submitted assignment below 40%, using two earlier assignment percentages; attendance/quiz/activity are not falsely mapped to source features. Preserve source/model/input evidence per estimate, old synthetic labels and institute/course permissions; refuse incompatible/missing records. Display external-data limitations and measured precision/recall/F1. No autonomous academic penalties, grade changes or progression decisions. See [real-data request](REAL_DATA_ML_REQUEST.md), [methodology](ml-methodology.md) and [evaluation](model-evaluation.md).

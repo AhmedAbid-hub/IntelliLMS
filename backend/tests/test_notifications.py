@@ -47,12 +47,15 @@ def test_enrollment_notifications_only_on_changes_and_private_destination(world,
 
 def test_correction_notifications_go_to_reviewers_requester_and_affected_student(world, client_for):
     a = world['a']
+    a['offering'].head_correction_review = True
+    a['offering'].save(update_fields=['head_correction_review'])
     grade = ManualGrade.objects.create(institute=a['institute'], offering=a['offering'], student=a['student'], title='Exam', marks=40, max_marks=100, released=True)
     teacher = client_for(a, 'teacher')
     response = teacher.post('/api/v1/corrections/', {'kind': 'manual', 'target': str(grade.pk), 'proposed': {'marks': 55}, 'reason': 'Rechecked marking sheet'}, format='json')
     assert response.status_code == 201
     assert Notification.objects.get(user=a['admin']).destination == '/academic-reviews'
-    assert not Notification.objects.filter(user__in=[a['head'], a['student'], world['b']['admin']]).exists()
+    assert Notification.objects.get(user=a['head']).destination == '/academic-reviews'
+    assert not Notification.objects.filter(user__in=[a['student'], world['b']['admin'], world['b']['head']]).exists()
     decision = f'/api/v1/corrections/{response.data["id"]}/decide/'
     data = {'decision': 'approved', 'reason': 'Verified signed rubric'}
     admin = client_for(a, 'admin')
@@ -60,4 +63,4 @@ def test_correction_notifications_go_to_reviewers_requester_and_affected_student
     assert Notification.objects.get(user=a['teacher']).destination == '/academic-reviews'
     assert Notification.objects.get(user=a['student']).destination == '/grades'
     assert admin.post(decision, data, format='json').status_code == 400
-    assert Notification.objects.count() == 3
+    assert Notification.objects.count() == 4
