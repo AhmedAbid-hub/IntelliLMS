@@ -2,7 +2,13 @@
 
 A working multi-institute learning platform built with Django 5.2, DRF, React, TypeScript, Vite, and a reproducible scikit-learn experiment. The deployment database is PostgreSQL. A deliberately selected SQLite mode is available for local evaluation.
 
+**Learning Insights (19 October):** [root cause, role workflow, corrections and test results](docs/learning-insights-20261019.md). Institute Admin remains read-only. Older-model predictions are preserved separately from the active OULAD risk counts; the page now explains coverage and provides the authorized teaching workflow. Latest verification: 249 PostgreSQL tests, 75 frontend tests and 10 selected Chromium workflows passed.
+
 **Developer navigation:** [complete handbook and file maps](docs/README.md) · [where to edit a feature](docs/WHERE_TO_EDIT.md).
+
+**Database split (18 October):** [verified backups, reconciliation dry run, startup safeguards and SMTP evidence](docs/database-mismatch-20261018.md). Both databases contain unique working data. PostgreSQL is the normal serving database; SQLite is preserved for a separately approved reconciliation. No automatic merge or fallback occurs.
+
+**Approved target recovery:** the reported account and its department, Head membership, invitation and 21 audit entries have now been recovered into PostgreSQL with their original IDs. Existing records remain unchanged. No email was sent; broader reconciliation and real invitation sending still require separate approval. [Recovery verification](docs/database-mismatch-20261018.md#approved-target-recovery).
 
 **Invitation delivery (18 October):** [investigation, delivery states and safe verification steps](docs/invitation-delivery-20261018.md). Use `python backend/manage.py check_invitation_delivery --email '<recipient-email>'` to inspect the selected configuration/account without sending mail. Legacy backend acceptance does not prove SMTP delivery; keep development processes on one intended database/configuration.
 
@@ -16,7 +22,7 @@ Historical stability verification (14 October): **136 PostgreSQL tests, 45 front
 
 ## Recovered local database
 
-The 12 October recovery preserved the existing records and moved them from SQLite into PostgreSQL. The ignored root `.env` selects the verified recovery database at `127.0.0.1`; use normal startup without `-SQLite`. See [recovery evidence and backups](docs/database-recovery-20261012.md). The original SQLite file is preserved but is no longer the live database.
+The 12 October recovery preserved the existing records and moved them from SQLite into PostgreSQL. The ignored root `.env` selects the recovery database at `127.0.0.1`; use normal startup without `-SQLite`. See [historical recovery evidence](docs/database-recovery-20261012.md). The 18 October investigation found subsequent writes in **both** databases. SQLite remains preserved and contains records missing from PostgreSQL; the [current reconciliation report](docs/database-mismatch-20261018.md) supersedes the assumption that it is merely a historical copy.
 
 ## Local startup: Windows PowerShell
 
@@ -40,12 +46,15 @@ Without Docker/PostgreSQL, use the explicit local evaluation mode:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/setup-local.ps1 -SQLite -Demo
-powershell -ExecutionPolicy Bypass -File scripts/start-backend.ps1 -SQLite
+powershell -ExecutionPolicy Bypass -File scripts/start-backend.ps1 -SQLite -Port 8002
 # In a second terminal, from the repository root:
+$env:VITE_API_TARGET='http://127.0.0.1:8002'
 npm.cmd --prefix frontend run dev
 ```
 
 The setup script creates `.env` if absent, installs locked dependencies, migrates, and only seeds fictional accounts when `-Demo` is supplied. It never overwrites an existing `.env`.
+
+Normal commands and the API reject inherited database/mail/frontend settings that conflict with root `.env`. The error lists variable names only. Clear the named overrides or use a fresh terminal; do not replace your credentials. Intentional deployments/benchmarks using injected settings can explicitly select `INTELLILMS_CONFIG_SOURCE=environment`; deployments without a root `.env` naturally use their injected environment. Isolated pytest/E2E settings remain separate. SQLite evaluation uses `evaluation.sqlite3`, a separate port and a local mail backend; the preserved `db.sqlite3` is protected from normal startup. A second backend for the same checkout/port is rejected, and Vite refuses to silently choose another port.
 
 ## Local startup: Linux / macOS
 
@@ -64,7 +73,7 @@ npm ci
 npm run dev
 ```
 
-For SQLite, export `DB_ENGINE=sqlite` and `DEBUG=True` in the backend terminal before migrations and startup. PostgreSQL behavior must still be tested before deployment.
+For isolated SQLite evaluation, export `INTELLILMS_SQLITE_EVALUATION=1`, `DB_ENGINE=sqlite`, `SQLITE_NAME=evaluation.sqlite3`, `DEBUG=True` and `EMAIL_BACKEND=django.core.mail.backends.locmem.EmailBackend`; serve on port 8002 and set frontend `VITE_API_TARGET=http://127.0.0.1:8002`. PostgreSQL behavior must still be tested before deployment.
 
 ## Addresses
 
@@ -76,6 +85,8 @@ For SQLite, export `DB_ENGINE=sqlite` and `DEBUG=True` in the backend terminal b
 | Django platform admin | http://127.0.0.1:8000/admin/ |
 
 Use a consistent host (`127.0.0.1` or `localhost`) so cookies stay on the same origin. Select an institute in the sidebar after signing in as Super Admin.
+
+The table shows example defaults. Vite now derives its normal port from root `FRONTEND_URL`; this workspace's existing setting is **http://127.0.0.1:5174**. `/api` and `/health` proxy to port 8000 unless an explicit test/evaluation `VITE_API_TARGET` is supplied. Stop an obsolete frontend before starting the intended one; port conflicts now fail instead of silently moving invitation links to another instance.
 
 ## Explicitly seeded demo accounts
 

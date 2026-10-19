@@ -129,7 +129,7 @@ def test_department_counts_are_distinct_and_unassigned_label_does_not_merge(worl
 
 @pytest.mark.django_db
 def test_risk_summary_uses_latest_authorized_prediction(world, client_for, monkeypatch):
-    monkeypatch.setattr('ml.inference.status', lambda: {'status': 'model_unavailable'})
+    monkeypatch.setattr('ml.inference.status', lambda: {'status': 'ready', 'version': 'demo'})
     a, b = world["a"], world["b"]
     for index, (data, category) in enumerate(
         [(a, "low"), (a, "high"), (b, "moderate")]
@@ -157,7 +157,7 @@ def test_risk_summary_uses_latest_authorized_prediction(world, client_for, monke
 
 @pytest.mark.django_db
 def test_course_trends_and_prediction_summaries_never_mix_offerings(world, client_for, monkeypatch):
-    monkeypatch.setattr('ml.inference.status', lambda: {'status': 'model_unavailable'})
+    monkeypatch.setattr('ml.inference.status', lambda: {'status': 'ready', 'version': 'synthetic-demo'})
     a = world['a']
     other = Offering.objects.create(institute=a['institute'], course=a['course'], term=a['term'], title='Another class')
     other.teachers.add(a['teacher'])

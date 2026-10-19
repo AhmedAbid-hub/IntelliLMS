@@ -24,6 +24,9 @@ def status():
             raise ValueError("Unsupported feature schema")
         if metadata.get("feature_schema") == oulad.SCHEMA and metadata.get("target") != oulad.TARGET:
             raise ValueError("Unsupported prediction target")
+        thresholds = metadata.get("thresholds", {"moderate": .35, "high": .65})
+        if not (0 <= float(thresholds["moderate"]) < float(thresholds["high"]) <= 1):
+            raise ValueError("Invalid risk thresholds")
         artifact = (ARTIFACTS / metadata["artifact"]).resolve()
         if artifact.parent != ARTIFACTS.resolve() or not artifact.is_file():
             raise ValueError("Invalid artifact")
@@ -79,7 +82,11 @@ def infer(features, counts, *, runtime=None):
         if runtime is not None:
             runtime['model'] = model
     names = metadata.get("features", FEATURES)
-    if list(model.feature_names_in_) != names:
+    try:
+        matches_schema = list(model.feature_names_in_) == names and list(model.classes_) == [0, 1]
+    except (AttributeError, TypeError, ValueError):
+        matches_schema = False
+    if not matches_schema:
         return {"status": "model_unavailable", "detail": "Model pipeline and declared feature schema disagree."}
     try:
         probability = float(model.predict_proba(pd.DataFrame([features], columns=names))[0, 1])
@@ -89,7 +96,7 @@ def infer(features, counts, *, runtime=None):
         return {"status": "model_unavailable", "detail": "The model could not evaluate the recorded inputs."}
     thresholds = metadata.get("thresholds", {"moderate": .35, "high": .65})
     category = (
-        "high" if probability >= thresholds["high"] else "moderate" if probability >= thresholds["moderate"] else "low"
+        "high" if probability >= float(thresholds["high"]) else "moderate" if probability >= float(thresholds["moderate"]) else "low"
     )
     factors = [
         {

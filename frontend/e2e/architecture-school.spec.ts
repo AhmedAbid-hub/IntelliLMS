@@ -14,6 +14,7 @@ test("school class, direct teaching, results and reviewed promotion preserve lea
   await write(page, "memberships", {institute: school.id, role: "admin", username: adminName, email: `${adminName}@example.test`});
   await logout(page); await activate(page, adminName);
   await page.goto("/academics");
+  await page.getByRole("link", {name: "Manage Classes & Grades", exact: true}).click();
   await expect(page.getByRole("heading", {name: "Classes & Grades"})).toBeVisible();
   await expect(page.getByRole("link", {name: "Teacher appointments", exact: true})).toHaveCount(0);
   expect((await page.request.get("/api/v1/units/")).status()).toBe(403);

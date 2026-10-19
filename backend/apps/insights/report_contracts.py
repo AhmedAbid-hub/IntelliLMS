@@ -111,11 +111,25 @@ class TrendsResult(serializers.Serializer):
     score_basis = serializers.CharField()
 
 
+class PredictionReadiness(serializers.Serializer):
+    courses = serializers.IntegerField()
+    open_courses = serializers.IntegerField()
+    learner_course_pairs = serializers.IntegerField()
+    eligible_pairs = serializers.IntegerField(allow_null=True)
+    insufficient_history_pairs = serializers.IntegerField(allow_null=True)
+    no_upcoming_pairs = serializers.IntegerField(allow_null=True)
+    historical_estimates = serializers.IntegerField()
+    model_status = serializers.CharField()
+    can_generate = serializers.BooleanField()
+    generation_reason = serializers.CharField(allow_blank=True)
+
+
 class RiskResult(serializers.Serializer):
     distribution = serializers.DictField(child=serializers.IntegerField())
     learner_course_pairs = serializers.IntegerField()
     basis = serializers.CharField()
     warning = serializers.CharField()
+    readiness = PredictionReadiness()
 
 
 class EvaluationMetrics(serializers.Serializer):

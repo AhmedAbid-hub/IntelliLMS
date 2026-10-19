@@ -1,3 +1,31 @@
+# Learning Insights verification � 19 October 2026
+
+The [Learning Insights correction](learning-insights-20261019.md) explains missing active-model estimates without inventing risk counts, retains older-model history, and preserves Institute Admin/Head oversight and assigned-instructor generation. Northstar has 16 legacy predictions, no active OULAD predictions, and 33 of 34 active learner-course pairs eligible at inspection. Teachers or authorized Heads in My Teaching can generate; no live estimates were created by testing. The existing OULAD artifact remains unchanged and externally evaluated, not locally validated or attendance-based.
+
+249 PostgreSQL tests, 75 frontend tests and 10 selected Chromium workflows passed; typecheck/build, Django and API-schema checks passed. Full browser-suite coverage is not claimed. Existing bundle-size and production configuration limitations remain.
+
+A final read-only comparison also observed a separately recorded invitation resend now marked SMTP accepted and accounts.0009 applied; password setup/inbox receipt remain unverified. No email was sent by this task. This supersedes the pending/failed/unapplied statuses in earlier dated checkpoints below. Academic data, saved predictions, SQLite, `.env` and model artifacts remain preserved; unapproved database reconciliation remains out of scope.
+
+# Final recovery verification — 19 October 2026
+
+The approved recovery remains exact and unchanged, and one PostgreSQL backend is serving the matching frontend. Safe Gmail TLS/authentication passed again; **no real invitation email has been sent**. The target still needs password setup. Its link origin is localhost (`127.0.0.1:5174`) and is usable only on the hosting computer while the application runs. Email approval, SMTP message acceptance, inbox delivery and live target activation remain outstanding; the latest Learning Insights task does not authorize them.
+
+Current verification: 233 existing PostgreSQL cases plus two new normal-hasher recovered-Head cases passed; 66 frontend cases, typecheck and build passed. Fourteen selected browser workflows passed initially; a stale school navigation assertion was corrected and that full workflow then passed separately. No production application code or live records changed in this verification step. Full evidence and remaining 38 candidates / 21 held conflicts: [database report](database-mismatch-20261018.md#final-recovery-and-invitation-verification--19-october-2026).
+
+# Approved target-account recovery — 18 October 2026
+
+The user-approved **25-row recovery is complete**: the original account, department, Head membership, invitation and 21 audit entries now exist in PostgreSQL with exact original fields/IDs. Rehearsal, full data-preservation comparison and five read-only permission checks passed. Pre-existing PostgreSQL records, SQLite and `.env` remain unchanged; PostgreSQL now has 49 users. No email was sent. The invitation remains pending setup with its preserved failed-send status, and its password is still unusable. Actual SMTP submission/inbox verification requires separate approval.
+
+The remaining **38 additive candidates and 21 conflicts** were not approved or imported. Equal user counts now do not mean the datasets are synchronized. See [current recovery evidence](database-mismatch-20261018.md#approved-target-recovery). No application source/frontend code changed during this data-only step; broad suites below were not repeated.
+
+# Database mismatch continuation — 18 October 2026
+
+The [continuation report](database-mismatch-20261018.md) supersedes earlier process/configuration guidance. Both preserved databases contain unique working records; PostgreSQL is the normal serving database but is not a complete merged dataset. The initial dry run found **63 additive candidates, zero updates, 21 conflicts**. The later approved 25-row target recovery is recorded above; 38 candidates and 21 conflicts remain. No pre-existing records, migration history or root `.env` were changed.
+
+Local startup now rejects conflicting inherited connection/mail/frontend variables and duplicate backend ownership, protects the historical SQLite file, and keeps frontend port selection aligned with FRONTEND_URL. Intentional environment overrides and isolated testing remain supported. These guards prevent accidental local drift; they do not synchronize stores or replace deployment process management.
+
+Gmail TLS/authentication passed using the existing settings without submitting any message. SMTP acceptance, recipient inbox placement and real account activation remain unverified and require explicit approval for live email. Safe exception categories improve diagnostics; token/transaction/delivery-evidence behavior is preserved. Full isolated PostgreSQL checkpoint: 230 passed; targeted follow-up: 44 passed (overlapping suites); frontend: 66 passed, typecheck/build passed; selected Chromium: four passed. Full browser regression was not repeated. The minimal target recovery has since been approved and verified, as recorded above. The previous full test counts below are historical, not additional tests in this run.
+
 # Invitation delivery — 18 October 2026
 
 The [invitation delivery correction](invitation-delivery-20261018.md) distinguishes SMTP acceptance from local test capture and legacy unknown transport, fixes stale resend responses, and preserves token/transaction/account protections. Configuration inspection found mixed console/SQLite and SMTP/PostgreSQL development processes; the reported recipient is only in preserved SQLite, absent from the freshly selected PostgreSQL dataset. Dataset reconciliation remains an operational prerequisite for that recipient; no account was copied/recreated, and no application database was reset or migrated. The choice-only migration is verified in isolated tests.

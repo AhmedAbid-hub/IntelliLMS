@@ -1,0 +1,52 @@
+import { test, expect } from "@playwright/test";
+import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { login, logout, write } from "./lifecycle-helpers";
+
+test("Admin oversight explains empty risk counts; authorized Head generates through My Teaching", async ({ page }) => {
+  test.setTimeout(180000);
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  page.on("response", response => { if (response.url().includes("/api/") && response.status() >= 500) errors.push(`API ${response.status()}`); });
+  const localPython = resolve("..", ".venv", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
+  execFileSync(process.env.E2E_PYTHON || (existsSync(localPython) ? localPython : "python"), ["../scripts/e2e-public-model-fixture.py"], { env: process.env });
+  await login(page, "university.admin", "LearnTogether42!");
+  const offerings = await (await page.request.get("/api/v1/offerings/")).json();
+  const course = offerings.results.find((row: { title: string }) => row.title === "Introduction to Computing · A");
+  await page.goto("/predictions");
+  const initial = await (await page.request.get(`/api/v1/predictions/summary/?offering=${course.id}`)).json();
+  expect(initial.readiness.can_generate).toBe(false);
+  await page.getByRole("button", { name: "Browse classes", exact: true }).click();
+  await page.getByRole("button", { name: new RegExp(course.title) }).click();
+  const region = page.getByRole("region", { name: "Class analysis" });
+  await expect(region.getByRole("button", { name: "Analyze class", exact: true })).toBeDisabled();
+  await expect(region).toContainText("Institute Admin has read-only oversight");
+  if (!initial.learner_course_pairs) {
+    await expect(page.getByRole("heading", { name: "No saved estimates from the current model" })).toBeVisible();
+    await expect(page.getByText("HIGH RISK", { exact: true })).toHaveCount(0);
+  }
+  const members = await (await page.request.get("/api/v1/memberships/?role=head")).json();
+  const head = members.results.find((row: { username: string }) => row.username === "university.head");
+  await write(page, `memberships/${head.id}/transition`, { operation: "change_role", role: "head", can_teach: true, reason: "Isolated ML browser verification" });
+  await write(page, `offerings/${course.id}`, { teachers: [...course.teachers, head.user], assignment_reason: "Isolated assigned Head verification" }, "PATCH");
+  await logout(page);
+  await login(page, "university.head", "LearnTogether42!");
+  await page.goto("/predictions");
+  await page.getByRole("button", { name: "Switch to My Teaching", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Teaching insights", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Browse classes", exact: true }).click();
+  await page.getByRole("button", { name: new RegExp(course.title) }).click();
+  await expect(region.getByRole("button", { name: "Analyze class", exact: true })).toBeEnabled();
+  await region.getByRole("button", { name: "Analyze class", exact: true }).click();
+  await expect(region.getByRole("status")).toContainText("Completed", { timeout: 60000 });
+  const summary = await (await page.request.get(`/api/v1/predictions/summary/?offering=${course.id}`)).json();
+  expect(summary.learner_course_pairs).toBeGreaterThan(0);
+  expect(Object.values(summary.distribution).reduce<number>((sum, value) => sum + Number(value), 0)).toBe(summary.learner_course_pairs);
+  await expect(page.getByText("HIGH RISK", { exact: true })).toBeVisible();
+  await logout(page);
+  await login(page, "university.admin", "LearnTogether42!");
+  await write(page, `offerings/${course.id}`, { teachers: course.teachers, assignment_reason: "Restore isolated browser fixture assignment" }, "PATCH");
+  await write(page, `memberships/${head.id}/transition`, { operation: "change_role", role: "head", can_teach: false, reason: "Restore isolated browser fixture capability" });
+  expect(errors).toEqual([]);
+});

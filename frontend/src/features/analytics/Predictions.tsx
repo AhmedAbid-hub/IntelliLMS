@@ -14,6 +14,9 @@ import {
 import { Pagination } from "../../components/ReportControls";
 import { ClassAnalysis } from "./ClassAnalysis";
 import { PredictionContext } from "./PredictionContext";
+import { PredictionAvailability, type PredictionReadiness } from "./PredictionAvailability";
+import { RelationSelect } from "../../components/RelationSelect";
+import { useTerminology } from "../../lib/terminology";
 import { useAuth } from "../auth/Auth";
 import {
   api,
@@ -43,6 +46,7 @@ interface PredictionSummary {
   distribution: Record<string, number>;
   learner_course_pairs: number;
   basis: string;
+  readiness: PredictionReadiness;
 }
 
 interface PredictionsProps {
@@ -154,6 +158,9 @@ function RiskSummary({
   const distribution = data.distribution ?? {};
 
   return (
+    <>
+    <PredictionAvailability data={data.readiness} estimates={data.learner_course_pairs} />
+    {data.learner_course_pairs > 0 && data.readiness.model_status === "ready" &&
     <section style={{ marginBottom: 22 }}>
       <div
         style={{
@@ -300,7 +307,8 @@ function RiskSummary({
         Counts represent learner-course pairs, not necessarily
         unique learners.
       </p>
-    </section>
+    </section>}
+    </>
   );
 }
 
@@ -373,8 +381,10 @@ function getOfferingSubtitle(row: RecordData): string {
 
 function ClassBrowser({
   onSelect,
+  term,
 }: {
   onSelect: (selected: SelectedClass) => void;
+  term: string;
 }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -386,12 +396,14 @@ function ClassBrowser({
   if (search.trim()) {
     params.set("search", search.trim());
   }
+  if (term) params.set("term", term);
 
   const query = useQuery({
     queryKey: [
       "prediction-classes",
       page,
       search.trim(),
+      term,
     ],
     queryFn: () =>
       api<Page<RecordData>>(
@@ -592,9 +604,11 @@ function ClassBrowser({
 function EstimateHistory({
   offering,
   allowDetails,
+  term = "",
 }: {
   offering?: string;
   allowDetails: boolean;
+  term?: string;
 }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -608,6 +622,7 @@ function EstimateHistory({
   if (offering) {
     params.set("offering", offering);
   }
+  if (term) params.set("term", term);
 
   const query = useQuery({
     queryKey: [
@@ -616,6 +631,7 @@ function EstimateHistory({
       page,
       search,
       offering,
+      term,
     ],
     queryFn: () =>
       api<Page<RecordData>>(
@@ -673,7 +689,7 @@ function EstimateHistory({
         ) : query.isError ? (
           <ErrorState error={query.error} />
         ) : !query.data.results.length ? (
-          <Empty>No estimates recorded yet.</Empty>
+          <Empty>{search.trim() ? "No saved estimates match this search in the selected scope." : "No estimates have been saved in this scope. Review the data coverage and role guidance above."}</Empty>
         ) : (
           <div className="table-scroll">
             <table>
@@ -1209,7 +1225,8 @@ function ClassInsights({
         <ClassAnalysis
           key={selected.id}
           offering={selected.id}
-          canGenerate={canGenerate}
+          canGenerate={canGenerate && !!summary.data?.readiness.can_generate}
+          disabledReason={summary.isPending ? "Checking course eligibility…" : summary.isError ? "Course eligibility could not be checked. Retry after resolving the error above." : summary.data?.readiness.generation_reason}
         />
       </div>
 
@@ -1218,7 +1235,7 @@ function ClassInsights({
           key={selected.id}
           offering={selected.id}
           model={model}
-          canGenerate={canGenerate}
+          canGenerate={canGenerate && !!summary.data?.readiness.can_generate}
         />
       </div>
 
@@ -1234,7 +1251,9 @@ function ClassInsights({
 export function Predictions({
   offering,
 }: PredictionsProps = {}) {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
+  const terminology = useTerminology();
+  const [term, setTerm] = useState("");
 
   const isAdmin = role === "admin";
   const isHead = role === "head";
@@ -1269,10 +1288,11 @@ export function Predictions({
       "predictions",
       "summary",
       "all",
+      term,
     ],
     queryFn: () =>
       api<PredictionSummary>(
-        "predictions/summary/",
+        `predictions/summary/?${new URLSearchParams(term ? { term } : {})}`,
       ),
     enabled:
       !offering &&
@@ -1315,7 +1335,17 @@ export function Predictions({
         title={title}
         description={description}
       />
+      {!isStudent && <p className="muted">Scope: {user?.institute_profile?.name || "Selected institute"} · {activeClass ? activeClass.title : "All permitted classes"}{!activeClass && !term ? " · All academic periods" : ""}</p>}
+      {model.isError && <ErrorState error={model.error} />}
+      {model.data?.status === "model_unavailable" && <p role="status" className="info-strip">{String(model.data.detail || "The model is unavailable. Saved history remains available.")}</p>}
       {model.data?.status === "ready" && <PredictionContext info={model.data} warning={model.data.warning} />}
+
+      {!offering && !isStudent && <section className="panel padded" aria-label="Insight scope" style={{ marginBottom: 20 }}>
+        <RelationSelect source="terms" label={terminology.label("term")} value={term} onChange={value => {
+          setTerm(String(value)); setSelectedClass(null);
+        }} />
+        {term && <Button variant="outline" onClick={() => { setTerm(""); setSelectedClass(null); }}>All academic periods</Button>}
+      </section>}
 
       {!offering && !isStudent && (
         <div
@@ -1407,11 +1437,15 @@ export function Predictions({
           )}
 
           <EstimateHistory
+            key={term}
+            term={term}
             allowDetails
           />
         </>
       ) : (
         <ClassBrowser
+          key={term}
+          term={term}
           onSelect={
             setSelectedClass
           }

@@ -35,10 +35,12 @@ def course_values(request):
     return query.validated_data
 
 
-def latest_predictions(scope):
+def latest_predictions(scope, version=None):
     scoped = Prediction.objects.filter(
         institute=scope.institute, offering__in=scope.offerings()
     )
+    if version is not None:
+        scoped = scoped.filter(version=version)
     latest = (
         scoped.filter(
             student_id=OuterRef("student_id"), offering_id=OuterRef("offering_id")
@@ -54,25 +56,28 @@ def latest_predictions(scope):
 def risk_summary(request):
     scope = Scope(request)
     scope.require("admin", "head", "teacher")
-    qs = latest_predictions(scope)
     from ml.inference import status
     model = status()
-    basis = "Latest stored estimate for each learner and course; historical versions may have different targets and are not directly comparable."
-    if model.get("mode") == "external_public" and model.get("status") == "ready":
-        qs = qs.filter(version=model["version"])
-        basis = f"Latest estimates using {model['version']}: {model['target_label']}. Older/different-target estimates remain in history and are excluded from these counts."
+    qs = latest_predictions(scope, version=model["version"]) if model["status"] == "ready" else Prediction.objects.none()
+    basis = (f"Latest estimates using {model['version']}: {model.get('target_label', 'configured model target')}. Older/different-target estimates remain in history and are excluded from these counts."
+             if model["status"] == "ready" else "Risk counts are unavailable until the configured model is verified. Saved estimates remain in history.")
     values = course_values(request)
-    qs = qs.filter(offering__in=offering_queryset(scope, values))
+    offerings = offering_queryset(scope, values)
+    qs = qs.filter(offering__in=offerings)
+    history = Prediction.objects.filter(institute=scope.institute, offering__in=offerings)
     if "stage" in values:
         qs = restrict_report_pairs(qs, enrollment_queryset(scope, values))
+        history = restrict_report_pairs(history, enrollment_queryset(scope, values))
     distribution = {x: 0 for x in ["low", "moderate", "high"]}
     for row in qs.values("category").annotate(total=Count("id")):
         distribution[row["category"]] = row["total"]
+    from .readiness import prediction_readiness
     return Response(
         {
             "distribution": distribution,
             "learner_course_pairs": qs.count(),
             "basis": basis,
+            "readiness": prediction_readiness(scope, values, offerings, model, history),
             "warning": "EXPERIMENTAL ESTIMATES — NOT VALIDATED FOR ACADEMIC DECISIONS",
         }
     )

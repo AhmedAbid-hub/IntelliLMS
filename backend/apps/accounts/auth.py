@@ -209,7 +209,8 @@ def password_email_delivery(user, token, invitation=False):
         # Delivery is after commit: a mail outage must not report account creation
         # as failed or prevent later CSV invitations from being attempted.
         # Do not log SMTP exception text, recipients, passwords or reset tokens.
-        logger.error("Password email delivery failed for account %s: %s", user.pk, type(exc).__name__)
+        from .mail_diagnostics import failure_category
+        logger.error("Password email delivery failed for account %s: %s (%s)", user.pk, failure_category(exc), type(exc).__name__)
         return "failed"
     if sent != 1:
         logger.error("Password email delivery failed for account %s: backend did not accept the message", user.pk)

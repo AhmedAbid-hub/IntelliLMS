@@ -12541,6 +12541,43 @@ components:
       - next
       - previous
       - results
+    PredictionReadiness:
+      type: object
+      properties:
+        courses:
+          type: integer
+        open_courses:
+          type: integer
+        learner_course_pairs:
+          type: integer
+        eligible_pairs:
+          type: integer
+          nullable: true
+        insufficient_history_pairs:
+          type: integer
+          nullable: true
+        no_upcoming_pairs:
+          type: integer
+          nullable: true
+        historical_estimates:
+          type: integer
+        model_status:
+          type: string
+        can_generate:
+          type: boolean
+        generation_reason:
+          type: string
+      required:
+      - can_generate
+      - courses
+      - eligible_pairs
+      - generation_reason
+      - historical_estimates
+      - insufficient_history_pairs
+      - learner_course_pairs
+      - model_status
+      - no_upcoming_pairs
+      - open_courses
     PredictionResult:
       type: object
       properties:
@@ -12943,10 +12980,13 @@ components:
           type: string
         warning:
           type: string
+        readiness:
+          $ref: '#/components/schemas/PredictionReadiness'
       required:
       - basis
       - distribution
       - learner_course_pairs
+      - readiness
       - warning
     RoleEnum:
       enum:

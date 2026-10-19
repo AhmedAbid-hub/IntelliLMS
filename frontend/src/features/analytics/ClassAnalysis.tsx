@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -241,11 +241,14 @@ function RiskEstimate({ item }: { item: Item }) {
 export function ClassAnalysis({
   offering,
   canGenerate = true,
+  disabledReason,
 }: {
   offering?: string;
   canGenerate?: boolean;
+  disabledReason?: string;
 }) {
   const client = useQueryClient();
+  const reasonId = useId();
 
   const [course, setCourse] = useState(offering || "");
   const [run, setRun] = useState<Run>();
@@ -334,7 +337,7 @@ export function ClassAnalysis({
   }, [items.data?.results]);
 
   async function analyze() {
-    if (running.current || !course) {
+    if (running.current || !course || !canGenerate) {
       return;
     }
 
@@ -475,6 +478,7 @@ export function ClassAnalysis({
       >
         <Button
           disabled={busy || !course || !canGenerate}
+          aria-describedby={!canGenerate ? reasonId : undefined}
           onClick={analyze}
         >
           {busy
@@ -495,7 +499,7 @@ export function ClassAnalysis({
           </Button>
         )}
       </div>
-      {!canGenerate && <p className="muted">Read-only oversight. Assigned instructors generate estimates from their teaching workspace; saved results are available below.</p>}
+      {!canGenerate && <p id={reasonId} className="muted">{disabledReason || "Read-only oversight. Assigned instructors generate estimates from their teaching workspace; saved results are available below."}</p>}
 
       {!!error && (
         <div style={{ marginTop: 14 }}>

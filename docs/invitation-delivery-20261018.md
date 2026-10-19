@@ -1,5 +1,7 @@
 # Invitation delivery investigation and fix — 18 October 2026
 
+**Continuation:** [database comparison, verified backups, startup safeguards and SMTP handshake evidence](database-mismatch-20261018.md). This later report supersedes the process/startup instructions below: both datasets contain unique changes, local configuration drift now fails explicitly, and Gmail TLS/authentication has passed without sending a message. The diagnostic is read-only by default; the new optional `--probe-smtp` connects/authenticates but never submits email. Data reconciliation and live email still require approval.
+
 ## Findings and evidence
 
 The original invitation sender interpreted any truthy Django `send_mail()` result as `email_status="sent"`. Django's console, file and in-memory backends can return 1 without submitting anything to an email provider. The console backend also prints the password-setup link. Consequently, the old “Submitted to mail backend” record never established SMTP acceptance.
