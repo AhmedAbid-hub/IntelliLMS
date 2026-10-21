@@ -1,4 +1,12 @@
-# Learning Insights verification � 19 October 2026
+# Refactoring verification — 21 October 2026
+
+The source reorganization and handbook are complete with the following verification limits. PostgreSQL 249 tests, frontend 107 tests, TypeScript, production build, Django checks and unchanged migration/API checks passed. The full browser run finished **49 passed / 2 timeouts (35.9m)**; a fresh unchanged rerun of the learning, quiz and platform-settings workflows passed **3/3 (1.4m)**. All 51 cases have passing evidence across runs, but a clean single full-suite pass is not claimed. A long gap in server activity occurred during the learning timeout; its cause was not established. Earlier browser failures, repairs and evidence paths are in [the checkpoint](refactoring/PROGRESS.md).
+
+Existing college stage terminology/batch differences and offering-page-derived department counts are documented in [institution rules](SCHOOL_COLLEGE_UNIVERSITY_RULES.md); they were not changed during this refactor. The build retains a large-chunk advisory. DBeaver instructions are provided but the desktop client was not installed. ML remains experimental with no IntelliLMS-student validation.
+
+Read-only comparisons found unchanged schema/counts for all 52 tables and unchanged hashes for all academic/audit/prediction/membership tables. Identity/session table hashes changed during the long-running session; their exact changed fields cannot be established from table-level baselines. No live data mutation was issued by this task, and concurrent activity was not reverted. Credentials, historical SQLite, models, migrations, stylesheet and ML files retain baseline hashes.
+
+# Learning Insights verification — 19 October 2026
 
 The [Learning Insights correction](learning-insights-20261019.md) explains missing active-model estimates without inventing risk counts, retains older-model history, and preserves Institute Admin/Head oversight and assigned-instructor generation. Northstar has 16 legacy predictions, no active OULAD predictions, and 33 of 34 active learner-course pairs eligible at inspection. Teachers or authorized Heads in My Teaching can generate; no live estimates were created by testing. The existing OULAD artifact remains unchanged and externally evaluated, not locally validated or attendance-based.
 

@@ -83,9 +83,29 @@ test("academic protection policy saves with a reason and requires an independent
   await page.getByRole("button", { name: "Sign out" }).click();
   await login(page, "admin");
   await page.goto(`/offerings?search=${encodeURIComponent(course.title)}`);
-  await page.getByRole("button", {name: `Edit ${course.title}`, exact: true}).click();
-  await page.getByRole("checkbox", {name: "Delegate grade and attendance correction review to this course's Department Head"}).check();
-  await page.getByRole("button", {name: "Save changes", exact: true}).click();
+  // Institute administrators enter the existing department-first offering browser.
+  const catalogCourse = await (
+    await page.request.get(`/api/v1/courses/${course.course}/`)
+  ).json();
+  const department = await (
+    await page.request.get(`/api/v1/units/${catalogCourse.unit}/`)
+  ).json();
+  const departmentName = String(department.name).replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&",
+  );
+  await page
+    .getByRole("button", { name: new RegExp(`^${departmentName} \\d+$`) })
+    .click();
+  await page
+    .getByRole("button", { name: `Edit ${course.title}`, exact: true })
+    .click();
+  await page
+    .getByRole("checkbox", {
+      name: "Delegate grade and attendance correction review to this course's Department Head",
+    })
+    .check();
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await page.getByRole("button", { name: "Sign out" }).click();
   await login(page, "head");
@@ -108,7 +128,16 @@ test("academic protection policy saves with a reason and requires an independent
   expect(saved.marks).toBe("55.50");
   await page.getByRole("button", { name: "Sign out" }).click();
   await login(page, "admin");
-  expect((await write(page, `offerings/${course.id}`, { head_correction_review: course.head_correction_review }, "PATCH")).ok()).toBe(true);
+  expect(
+    (
+      await write(
+        page,
+        `offerings/${course.id}`,
+        { head_correction_review: course.head_correction_review },
+        "PATCH",
+      )
+    ).ok(),
+  ).toBe(true);
   expect(
     (
       await write(

@@ -45,8 +45,12 @@ test("Super Admin can review global changes without an active institute", async 
 }) => {
   await login(page, "superadmin");
   await page.goto("/platform-settings");
-  await page.getByRole("textbox", { name: /^Notice message/ }).fill("Audit verification notice");
-  await page.getByRole("button", { name: "Save platform settings", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: /^Notice message/ })
+    .fill("Audit verification notice");
+  await page
+    .getByRole("button", { name: "Save platform settings", exact: true })
+    .click();
   await expect(
     page
       .getByRole("status")
@@ -65,7 +69,8 @@ test("Super Admin can review global changes without an active institute", async 
     page.getByRole("navigation", { name: "Breadcrumb" }),
   ).toContainText("Platform audit");
   await page.getByLabel("Search Platform audit").fill("no-such-audit-event");
-  await expect(page.getByText(/No records yet/)).toBeVisible();
+  await expect(page.locator("tbody tr")).toHaveCount(0);
+  await expect(page.locator(".count-badge")).toHaveText("0");
 });
 
 test("teacher workload uses paginated search and student analytics hides it", async ({
@@ -73,12 +78,12 @@ test("teacher workload uses paginated search and student analytics hides it", as
 }) => {
   await login(page, "college.teacher");
   await page.goto("/analytics");
-  await page.getByRole("button", { name: "Teaching overview", exact: true }).click();
-  const workload = page
-    .locator("section")
-    .filter({
-      has: page.getByRole("heading", { name: "Instructor workload" }),
-    });
+  await page
+    .getByRole("button", { name: "Teaching overview", exact: true })
+    .click();
+  const workload = page.locator("section").filter({
+    has: page.getByRole("heading", { name: "Instructor workload" }),
+  });
   await expect(workload.locator("tbody tr")).toHaveCount(1);
   await expect(
     page.getByRole("navigation", { name: "Instructor workload pagination" }),

@@ -171,6 +171,6 @@ Local evidence: `backend/database-repair-regression.log`, `backend/test-results/
 Evidence: `backend/test-results/final-recovery-verification.json`, `final-head-access-preview.json`, `final-serving-processes.json`, `final-invitation-regression.xml`, `final-recovered-head.xml`; test logs named `final-invitation-*` / `final-school-browser.log` are ignored local artifacts. Initial broad secret scanning also matched existing public development defaults in `.env.example` and Docker Compose; these are pre-existing local-development settings, not newly exposed SMTP credentials, and still require production replacement.
 
 
-### Later read-only observation — 19 October 2026
+### Later read-only observation â€” 19 October 2026
 
 During the subsequent Learning Insights task, the final comparison found separate live activity after the exact-recovery verification: accounts.0009 has been applied; invitation 3 was resent at 18 October 2026 16:27:08 UTC, has one corresponding audit and now records SMTP acceptance. Setup remains unaccepted. One existing user's last-login value and two new sessions also differ. This agent did not perform the resend/migration in this work. They were preserved without rollback. Academic rows, all 17 predictions, SQLite, root `.env` and model artifacts remain unchanged. The earlier pending/failed/unapplied statuses are historical checkpoints, not the latest state. Inbox delivery is not verified. See [Learning Insights final verification](learning-insights-20261019.md#final-preservation-and-concurrent-activity).

@@ -1,6 +1,18 @@
 # Implementation progress
 
-## Learning Insights correction � 19 October 2026
+## Codebase refactoring — completed 21 October 2026 with verification limitations
+
+- [x] Preserved a verified source recovery archive and the existing database; work is on `codex/codebase-refactor-20261020`.
+- [x] Separated startup/routes/providers, 30 named resource entries, shell navigation, role dashboards, course workspace, resource forms/actions, placement and correction panels. All 25 route patterns (53 expanded paths) retained.
+- [x] Split four backend view modules and account serializers into feature packages, retaining imports. All 37 moved definitions have identical syntax trees after import resolution. Models, migrations, policy modules, stylesheet and artifacts preserved.
+- [x] Added the requested developer guides, 52-table dictionary/ER diagrams, complete 148-path API inventory and safe DBeaver instructions. Updated published OpenAPI to include an already-existing membership deletion endpoint; runtime API schemas before/after remain identical.
+- [x] Final PostgreSQL: 249 passed (143.53s); final frontend: 107 passed (29.11s), TypeScript and production build passed. Django checks, migration drift and warning-free OpenAPI validation passed.
+- [x] Full Chromium run: **49 passed / 2 timeouts (35.9m)**. Both affected workflows plus the neighboring quiz workflow passed unchanged in a fresh focused run: **3 passed (1.4m)**. All 51 cases have passing evidence across runs; a clean single full-suite pass is not claimed. Earlier repaired staff/appointment cases also passed three times each (6 passes).
+- [x] Reviewed all 14 desktop/mobile comparison images: eight pixel-identical, all dimensions unchanged; remaining fixture/text-render differences documented. Read-only verification confirmed 52 tables with unchanged schema/counts and academic/audit/prediction/membership hashes. Account/session hashes differ from the starting snapshot; exact changes cannot be attributed from table hashes. No live data mutation was issued by this task.
+- [x] Completed source/route/endpoint references, local link checks, UTF-8 repair verification and sensitive-file review. No credentials, private backups or generated test artifacts are included in Git candidates. Full results, evidence paths and boundaries: [refactoring progress](docs/refactoring/PROGRESS.md).
+- [ ] Follow-up assurance: repeat the complete browser suite in an uninterrupted run if a single green run is required. Existing bundle-size, institution-label/count and real-student ML-validation limitations remain; they are not new functionality for this refactor.
+
+## Learning Insights correction — 19 October 2026
 
 - [x] Verified the affected role: Institute Admin at Northstar University. Read-only generation is intentional. Northstar retains 16 older synthetic-model predictions and zero active OULAD predictions; all 17 prediction records across PostgreSQL match the preserved dataset. No prediction recovery/import is needed.
 - [x] Read-only coverage inspection: Northstar has four offerings / 34 active learner-course pairs; 33 have eligible prior assignments and upcoming work, one has no unsubmitted future assignment. The model artifact is ready. No live estimates were generated to populate the charts.

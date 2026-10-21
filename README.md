@@ -1,8 +1,12 @@
 # IntelliLMS
 
+Developer orientation: [START_HERE.md](docs/START_HERE.md) · [Where to edit](docs/WHERE_TO_EDIT.md) · [Database explorer](docs/DATABASE_EXPLORER_GUIDE.md) · [Refactoring progress](docs/refactoring/PROGRESS.md)
+
+**Codebase reorganization (21 October):** named page entries, separated role dashboards/forms/navigation and feature-based backend view packages preserve existing routes, policies and models. The handbook includes a verified 52-table dictionary, relationship diagrams and API/source maps. PostgreSQL **249 passed**, frontend **107 passed**, TypeScript/build and Django/schema checks passed. Browser: **49 passed / 2 timeouts**, then **3 focused passes** including both affected workflows; this is not a clean single full-suite pass. See [exact results and preservation evidence](docs/refactoring/PROGRESS.md).
+
 A working multi-institute learning platform built with Django 5.2, DRF, React, TypeScript, Vite, and a reproducible scikit-learn experiment. The deployment database is PostgreSQL. A deliberately selected SQLite mode is available for local evaluation.
 
-**Learning Insights (19 October):** [root cause, role workflow, corrections and test results](docs/learning-insights-20261019.md). Institute Admin remains read-only. Older-model predictions are preserved separately from the active OULAD risk counts; the page now explains coverage and provides the authorized teaching workflow. Latest verification: 249 PostgreSQL tests, 75 frontend tests and 10 selected Chromium workflows passed.
+**Learning Insights (19 October):** [root cause, role workflow, corrections and test results](docs/learning-insights-20261019.md). Institute Admin remains read-only. Older-model predictions are preserved separately from the active OULAD risk counts; the page now explains coverage and provides the authorized teaching workflow. Verification at that checkpoint: 249 PostgreSQL tests, 75 frontend tests and 10 selected Chromium workflows passed.
 
 **Developer navigation:** [complete handbook and file maps](docs/README.md) · [where to edit a feature](docs/WHERE_TO_EDIT.md).
 

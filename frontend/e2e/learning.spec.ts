@@ -5,9 +5,7 @@ async function login(page: Page, role: string) {
   await page.getByLabel("Username").fill(`university.${role}`);
   await page.getByLabel("Password", { exact: true }).fill("LearnTogether42!");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: "Sign out" }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
 }
 async function logout(page: Page) {
   await page.getByRole("button", { name: "Sign out" }).click();
@@ -37,22 +35,47 @@ test("admin structure → instructor lesson and assignment → student work → 
   await page.getByLabel("Course name").fill("E2E Course");
   await chooseRelation(page, "Choose subject", "E2E Thinking");
   await chooseRelation(page, "Academic term", "Academic term");
-  await page.getByRole("button", {name: "Advanced settings", exact: true}).click();
-  await page.getByRole("checkbox", { name: /Administrative teacher assignment override/ }).check();
-  await page.getByLabel(/Administrative assignment override reason/).fill("Temporary cover while department leadership is appointed");
-  await chooseRelation(page, "Instructors (Ctrl/Cmd to select multiple)", "university.teacher", true);
-  await page.getByRole("button", { name: "Create course", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Advanced settings", exact: true })
+    .click();
+  await page
+    .getByRole("checkbox", {
+      name: /Administrative teacher assignment override/,
+    })
+    .check();
+  await page
+    .getByLabel(/Administrative assignment override reason/)
+    .fill("Temporary cover while department leadership is appointed");
+  await chooseRelation(
+    page,
+    "Instructors (Ctrl/Cmd to select multiple)",
+    "university.teacher",
+    true,
+  );
+  await page
+    .getByRole("button", { name: "Create course", exact: true })
+    .click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await page.goto("/enrollments");
   await expect(page.getByRole("button", { name: "Add new" })).toHaveCount(0);
   await page.getByRole("link", { name: "Manage course enrollments" }).click();
-  await page.getByPlaceholder(/Search/i).first().fill("E2E Course");
+  await page
+    .getByPlaceholder(/Search/i)
+    .first()
+    .fill("E2E Course");
+  await page.getByRole("button", { name: /^E2E Department \d+$/ }).click();
   await page.getByRole("button", { name: "Enroll students" }).click();
   await page.getByLabel("Find students").fill("university.student");
   await page.getByLabel("Select university.student", { exact: true }).check();
-  await page.getByLabel("Reason", { exact: true }).fill("Registration for the new course");
-  await page.getByRole("button", { name: "Confirm enrollment changes" }).click();
-  await expect(page.getByRole("cell", { name: "Enrolled", exact: true })).toBeVisible();
+  await page
+    .getByLabel("Reason", { exact: true })
+    .fill("Registration for the new course");
+  await page
+    .getByRole("button", { name: "Confirm enrollment changes" })
+    .click();
+  await expect(
+    page.getByRole("cell", { name: "Enrolled", exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await logout(page);

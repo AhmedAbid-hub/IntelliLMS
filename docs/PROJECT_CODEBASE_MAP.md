@@ -48,7 +48,9 @@ backend/
     data/oulad/                   ignored downloaded public training data
   tests/                          backend unit/API/security/concurrency tests
 frontend/
-  src/main.tsx                    providers and all React route registrations
+  src/main.tsx                    React bootstrap
+  src/app/                        composition, providers, router and resource registry
+  src/pages/                      30 named resource entry components
   src/components/                 shell, selectors, feedback, dialogs, report controls
   src/features/                   auth, resources, courses, quizzes, analytics
   src/lib/                        API, scope display, terminology, URL filters
@@ -88,20 +90,20 @@ Private media is downloaded through authorized API actions. It is not a public `
 
 ## Frontend architecture
 
-[main.tsx](../frontend/src/main.tsx) mounts React, a QueryClient, BrowserRouter, AuthProvider and route-level Suspense. `WorkspaceHome` chooses `Platform` for Super Admin and `Dashboard` for institute users. `Dashboard` renders Admin/Head/Teacher/Student variants. The Gradebook import in main points to a re-export from Dashboard; its implementation lives in [Gradebook.tsx](../frontend/src/features/analytics/Gradebook.tsx).
+[main.tsx](../frontend/src/main.tsx) mounts [App](../frontend/src/app/App.tsx). [ApplicationProviders](../frontend/src/app/providers/ApplicationProviders.tsx) owns the unchanged QueryClient, BrowserRouter, AuthProvider and Suspense nesting. [router.tsx](../frontend/src/app/router.tsx) owns the route tree and WorkspaceHome selection. PlatformDashboard is the Super Admin page; Dashboard dispatches to named Admin/Head/Teacher/Student components in [dashboards](../frontend/src/features/analytics/dashboards). Gradebook is now lazy-imported directly from [Gradebook.tsx](../frontend/src/features/analytics/Gradebook.tsx).
 
 [Auth.tsx](../frontend/src/features/auth/Auth.tsx) fetches CSRF and identity, derives the effective role and clears non-auth query caches when institute/workspace changes. [Shell.tsx](../frontend/src/components/layouts/Shell.tsx) owns navigation, institute switching, responsive menus and the workspace outlet. [WorkspaceRoute.tsx](../frontend/src/components/layouts/WorkspaceRoute.tsx) and [access.ts](../frontend/src/lib/access.ts) provide UI access checks; server checks remain authoritative.
 
-[ResourcePage.tsx](../frontend/src/features/resources/ResourcePage.tsx) drives 30 resource pages from [config.ts](../frontend/src/features/resources/config.ts). It composes ResourceForm, ResourceFilters, workflow dialogs, cards and pagination. Special journeys such as admissions, appointment management and progression have dedicated components. [CourseDetail.tsx](../frontend/src/features/courses/CourseDetail.tsx) reuses these screens as local-state tabs with an offering filter; the tabs are not separate URL routes.
+[ResourcePage.tsx](../frontend/src/features/resources/ResourcePage.tsx) drives 30 resource pages from [config.ts](../frontend/src/features/resources/config.ts). It composes ResourceForm, ResourceFilters, workflow dialogs, cards and pagination. Special journeys such as admissions, appointment management and progression have dedicated components. [CourseWorkspace.tsx](../frontend/src/features/courses/CourseWorkspace.tsx) reuses these screens as local-state tabs with an offering filter; the tabs are not separate URL routes.
 
 ## Backend and database architecture
 
 | App | Primary responsibilities | Start here |
 |---|---|---|
-| accounts | Users, institutes, membership scope, session login, invitations, avatars, appointments and lifecycle | [scope.py](../backend/apps/accounts/scope.py), [views.py](../backend/apps/accounts/views.py) |
-| academics | Departments, years, periods, programs/classes, subjects, offerings, enrollment and placement/history | [models.py](../backend/apps/academics/models.py), [views.py](../backend/apps/academics/views.py), [admission.py](../backend/apps/academics/admission.py), [progression.py](../backend/apps/academics/progression.py) |
-| learning | Lessons/materials, assignment submissions, quiz attempts, attendance, notifications and reviewed corrections | [views.py](../backend/apps/learning/views.py), [governance.py](../backend/apps/learning/governance.py) |
-| insights | Computed gradebook/reports/GPA, activity/audit records, prediction history and bounded class analysis | [gradebook.py](../backend/apps/insights/gradebook.py), [views.py](../backend/apps/insights/views.py), [batch.py](../backend/apps/insights/batch.py) |
+| accounts | Users, institutes, membership scope, session login, invitations, avatars, appointments and lifecycle | [scope.py](../backend/apps/accounts/scope.py), [views package](../backend/apps/accounts/views/__init__.py) |
+| academics | Departments, years, periods, programs/classes, subjects, offerings, enrollment and placement/history | [models.py](../backend/apps/academics/models.py), [views package](../backend/apps/academics/views/__init__.py), [admission.py](../backend/apps/academics/admission.py), [progression.py](../backend/apps/academics/progression.py) |
+| learning | Lessons/materials, assignment submissions, quiz attempts, attendance, notifications and reviewed corrections | [views package](../backend/apps/learning/views/__init__.py), [governance.py](../backend/apps/learning/governance.py) |
+| insights | Computed gradebook/reports/GPA, activity/audit records, prediction history and bounded class analysis | [gradebook.py](../backend/apps/insights/gradebook.py), [views package](../backend/apps/insights/views/__init__.py), [batch.py](../backend/apps/insights/batch.py) |
 
 All app API registration is centralized in [config/urls.py](../backend/config/urls.py). There are no app-specific `urls.py` files. `TenantModel` supplies UUID, institute FK and creation time; it does not automatically filter ORM queries. `TenantViewSet`, `Scope`, serializers and individual services perform that enforcement. Settings/GPA policies use JSON on `Institute`, not a separate settings/GPA table. Gradebook and GPA are computed from records; progression evidence is persisted separately.
 

@@ -24,7 +24,7 @@ Target: **whether the next submitted assignment scores below 40%**, conditional 
 | [ml/inference.py](../backend/ml/inference.py): `status`, `insufficient`, `model_info`, `infer` | File confinement, hash/schema/target checks, trusted joblib load, missing/range checks, probabilities/categories/warnings | No arbitrary model-upload endpoint |
 | [prediction_inputs.py](../backend/apps/insights/prediction_inputs.py): `prediction_inputs` | Dispatch by artifact feature schema, read actual released marks, normalize by assignment maximum, preserve evidence | Assignment, Submission; context describes actual source assignments |
 | [services.py](../backend/apps/insights/services.py): `student_features` | Legacy aggregate feature extraction only | Do not use this to silently feed the public two-feature model |
-| [views.py](../backend/apps/insights/views.py): `model_status`, `predictions`, `require_prediction_instructor` | Status GET, authorized individual POST, filtered/paginated history GET, saved context | Prediction, scoped active Enrollment/Membership |
+| [views package](../backend/apps/insights/views/__init__.py): `model_status`, `predictions`, `require_prediction_instructor` | Status GET, authorized individual POST, filtered/paginated history GET, saved context | Prediction, scoped active Enrollment/Membership |
 | [batch.py](../backend/apps/insights/batch.py): `start_analysis`, `scoped_run`, `estimate_row`, `advance_analysis`, `analysis_items` | Persist/resume bounded class run, ten learners per advancement, recheck permissions, deduplicate identical inputs/version/evidence | AnalysisRun, AnalysisItem, Prediction |
 | [reporting.py](../backend/apps/insights/reporting.py): `latest_predictions`, `risk_summary` | Current public-version summary; older/different-target predictions remain in history | `/predictions/summary/` |
 | [models.py](../backend/apps/insights/models.py) | Prediction values/version/warnings/context; run/item persistence | [0002 batch migration](../backend/apps/insights/migrations/0002_analysisitem_analysisrun_prediction_input_digest_and_more.py), [0003 context migration](../backend/apps/insights/migrations/0003_prediction_context.py) |
@@ -32,7 +32,7 @@ Target: **whether the next submitted assignment scores below 40%**, conditional 
 | [Predictions.tsx](../frontend/src/features/analytics/Predictions.tsx) | Model status, risk summary, individual generation, history and filtering | `/predictions`, course AI insights tab; staff oversight can read |
 | [ClassAnalysis.tsx](../frontend/src/features/analytics/ClassAnalysis.tsx) | Analyze Class start/advance loop, progress, results, read-only controls, prediction-basis dialog | `/class-analysis/`, `/{id}/advance/`, `/{id}/items/` |
 | [PredictionContext.tsx](../frontend/src/features/analytics/PredictionContext.tsx) | Source, target, metrics, date/input evidence and experimental warning | Saved per-prediction context; preserves historical warning distinctions |
-| [CourseDetail.tsx](../frontend/src/features/courses/CourseDetail.tsx) | Existing course AI insights integration | Staff course tab, not a second prediction system |
+| [CourseWorkspace.tsx](../frontend/src/features/courses/CourseWorkspace.tsx) | Existing course AI insights integration | Staff course tab, not a second prediction system |
 
 ## Training and inference flow
 
