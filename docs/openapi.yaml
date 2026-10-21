@@ -4013,6 +4013,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/Membership'
           description: ''
+    delete:
+      operationId: v1_memberships_destroy
+      description: Permanently delete an unused, inactive membership and its unused
+        user.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this membership.
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/memberships/{id}/academic-results/:
     get:
       operationId: v1_memberships_academic_results_retrieve
@@ -9752,7 +9771,9 @@ components:
         email_status:
           type: string
           nullable: true
-          description: 'pending: queued/sending; accepted: SMTP accepted, not inbox delivery; failed: not submitted; local: test capture only; sent: legacy transport unknown.'
+          description: 'pending: queued/sending; accepted: SMTP accepted, not inbox
+            delivery; failed: not submitted; local: test capture only; sent: legacy
+            transport unknown.'
         issued_at:
           type: string
           format: date-time

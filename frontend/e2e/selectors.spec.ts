@@ -23,7 +23,11 @@ test("course choice search and pagination reach records beyond the first fifty",
   }
   const requests: string[] = [];
   page.on("request", (request) => {
-    if (request.url().includes("/api/v1/courses/"))
+    // Track the selector's bounded pages separately from the existing department-browser lookup.
+    if (
+      request.url().includes("/api/v1/courses/") &&
+      new URL(request.url()).searchParams.has("page")
+    )
       requests.push(request.url());
   });
   await page.goto("/offerings");
@@ -31,8 +35,12 @@ test("course choice search and pagination reach records beyond the first fifty",
   const dialog = page.getByRole("dialog");
   const selector = dialog
     .locator(".relation-select")
-    .filter({ has: page.getByRole("button", { name: "Choose subject", exact:true }) });
-  await selector.getByRole("button",{name:"Choose subject",exact:true}).click();
+    .filter({
+      has: page.getByRole("button", { name: "Choose subject", exact: true }),
+    });
+  await selector
+    .getByRole("button", { name: "Choose subject", exact: true })
+    .click();
   await expect(
     dialog.getByRole("button", { name: "Next Choose subject page" }),
   ).toBeEnabled();
@@ -44,9 +52,15 @@ test("course choice search and pagination reach records beyond the first fifty",
   expect(requests).toHaveLength(2);
   await dialog.getByRole("searchbox").fill("Paged choice 50");
   await expect(dialog.getByRole("option")).toHaveCount(1);
-  await dialog.getByRole("option",{name:"Paged choice 50",exact:true}).click();
-  await expect(selector.getByRole("button",{name:"Choose subject",exact:true})).toContainText("Paged choice 50");
-  await selector.getByRole("button",{name:"Choose subject",exact:true}).click();
+  await dialog
+    .getByRole("option", { name: "Paged choice 50", exact: true })
+    .click();
+  await expect(
+    selector.getByRole("button", { name: "Choose subject", exact: true }),
+  ).toContainText("Paged choice 50");
+  await selector
+    .getByRole("button", { name: "Choose subject", exact: true })
+    .click();
   await dialog.getByRole("searchbox").fill("Paged choice 00");
   await expect(dialog.getByRole("option")).toHaveCount(1);
   await expect(selector.locator("select option:checked")).toHaveText(

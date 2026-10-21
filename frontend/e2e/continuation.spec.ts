@@ -18,7 +18,8 @@ test("people filters combine role, status and academic unit", async ({
   await expect(page.locator("tbody tr")).toHaveCount(1);
   await expect(page.locator("tbody")).toContainText("college.teacher");
   await page.getByLabel("Filter Active status").selectOption("false");
-  await expect(page.getByText(/No records yet/)).toBeVisible();
+  await expect(page.locator("tbody tr")).toHaveCount(0);
+  await expect(page.locator(".count-badge")).toHaveText("0");
   await page.getByLabel("Filter Active status").selectOption("");
   await page.getByLabel("Filter Role").selectOption("student");
   await expect(page.locator("tbody tr")).toHaveCount(12);
@@ -29,7 +30,9 @@ test("school settings persist terminology and grade bands into learner reports",
 }) => {
   await login(page, "school.admin");
   await page.goto("/institute-settings");
-  await page.getByText("Advanced terminology settings", { exact: true }).click();
+  await page
+    .getByText("Advanced terminology settings", { exact: true })
+    .click();
   await page.getByLabel("Singular term", { exact: true }).fill("Quarter");
   await page.getByLabel("Plural term", { exact: true }).fill("Quarters");
   await page.getByLabel("Repeated quiz attempts").selectOption("best");
@@ -46,9 +49,7 @@ test("school settings persist terminology and grade bands into learner reports",
     page.getByRole("status").filter({ hasText: /settings saved\./i }),
   ).toHaveText("Settings saved.");
   await page.goto("/academics");
-  await expect(
-    page.getByRole("link", { name: /Quarters/ }),
-  ).toBeVisible();
+  await expect(page.getByRole("link", { name: /Quarters/ })).toBeVisible();
   await page.goto("/grades");
   await expect(
     page.getByRole("navigation", { name: "Gradebook pagination" }),
@@ -84,7 +85,9 @@ test("platform overview stays accessible after entering an institute", async ({
   await expect(
     page.getByRole("heading", { name: "Platform overview" }),
   ).toBeVisible();
-  await page.getByRole("link", {name:"Northstar University", exact:true}).click();
+  await page
+    .getByRole("link", { name: "Northstar University", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Institute administrators" }),
   ).toBeVisible();

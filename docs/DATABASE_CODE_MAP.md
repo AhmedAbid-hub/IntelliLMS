@@ -47,7 +47,7 @@ Tenant boundary, type, branding terminology and grading/policy JSON.
 | Relationships | No domain foreign keys. |
 | Named constraints | No named Meta constraint; inspect field validators and serializers. |
 | API users | `institutes/`; `platform/` |
-| Frontend entry | [Platform.tsx](../frontend/src/features/analytics/Platform.tsx); related resource/config screens are indexed in [frontend map](FRONTEND_PAGE_MAP.md) |
+| Frontend entry | [PlatformDashboard.tsx](../frontend/src/features/analytics/PlatformDashboard.tsx); related resource/config screens are indexed in [frontend map](FRONTEND_PAGE_MAP.md) |
 
 ### PlatformConfiguration
 
@@ -183,7 +183,7 @@ Delivered subject in a period/section with teachers, weights and correction dele
 | Relationships | `course` → academics.Course; `term` → academics.Term; `section` → academics.Section (optional); `teachers` → accounts.User (M2M) |
 | Named constraints | `CheckConstraint: condition=(AND: ('assignment_weight', CombinedExpression: Value(100) - F(quiz_weight) - F(manual_weight))) name='weights_total_100'` |
 | API users | `offerings/` |
-| Frontend entry | [CourseDetail.tsx](../frontend/src/features/courses/CourseDetail.tsx); related resource/config screens are indexed in [frontend map](FRONTEND_PAGE_MAP.md) |
+| Frontend entry | [CourseWorkspace.tsx](../frontend/src/features/courses/CourseWorkspace.tsx); related resource/config screens are indexed in [frontend map](FRONTEND_PAGE_MAP.md) |
 
 ### Enrollment
 

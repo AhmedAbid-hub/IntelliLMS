@@ -1,6 +1,8 @@
 # IntelliLMS developer handbook
 
-Source-inspected on 16 October 2026. Start here when changing a feature or preparing to explain the project. This handbook maps the current working tree, including existing uncommitted work; it is not a statement that every possible production scenario has been tested.
+Start with [START_HERE.md](START_HERE.md), the [current project structure](PROJECT_STRUCTURE.md), [database explorer](DATABASE_EXPLORER_GUIDE.md), and [refactoring checkpoint](refactoring/PROGRESS.md). The maps below reflect the reorganized application; dated implementation evidence remains separate.
+
+Updated through 21 October 2026. Start here when changing a feature or preparing to explain the project. This handbook maps the current working tree, including existing uncommitted work; it is not a statement that every possible production scenario has been tested.
 
 ## Contents
 
@@ -28,8 +30,8 @@ This handbook complements, rather than replaces, [the existing documentation ind
 
 ## Verification and boundaries
 
-Later targeted changes: [invitation delivery investigation and fixes, 18 October](invitation-delivery-20261018.md), including transport evidence, transaction handling, a read-only diagnostic and updated tests. The inventory counts below describe the original 16 October handbook snapshot.
+Later targeted changes: [invitation delivery investigation and fixes, 18 October](invitation-delivery-20261018.md), including transport evidence, transaction handling, a read-only diagnostic and updated tests. The inventory below includes the current refactoring corrections.
 
-The navigation inventory covers **24 React router patterns**, including the generic resource and not-found patterns; expanding the generic resource into its **30 configured resource pages** gives **52 concrete page patterns**, excluding those two generic fallbacks. The five dashboards are role variants, not five separate URLs. The backend catalog covers **148 distinct URL patterns** outside the Django admin site, including **144 under `/api/v1/`** (one is the API discovery root), plus health/readiness/schema/docs. It maps **41 concrete project Django models**; abstract bases, auto-created many-to-many tables and Django framework models are identified separately.
+The navigation inventory covers **25 React router patterns**, including the generic resource and not-found patterns; expanding the generic resource into its **30 configured resource pages** gives **53 concrete page patterns**, excluding those two generic fallbacks. The five dashboards are role variants, not five separate URLs. The backend catalog covers **148 distinct URL patterns** outside the Django admin site, including **144 under `/api/v1/`** (one is the API discovery root), plus health/readiness/schema/docs. It maps **41 concrete project Django models**; abstract bases, auto-created many-to-many tables and Django framework models are identified separately.
 
-The final verification note in the [testing guide](TESTING_AND_DEBUGGING_GUIDE.md#handbook-verification) records link, route, endpoint and source-integrity checks. No application logic, database records, migrations, artifacts or UI components were changed for this handbook. Earlier test pass counts are historical executed evidence, not tests rerun during this documentation-only task. Static review findings are listed in the [permission map](ROLES_AND_PERMISSIONS_MAP.md#discrepancies-and-boundaries).
+The final verification note in the [testing guide](TESTING_AND_DEBUGGING_GUIDE.md#handbook-verification) records link, route, endpoint and source-integrity checks. The original 16 October handbook was documentation-only. The current task reorganizes application source and runs regression tests; see the [refactoring checkpoint](refactoring/PROGRESS.md) for exact results and data-preservation evidence. Models, migrations, artifacts and the stylesheet retain their baseline hashes. Static review findings are listed in the [permission map](ROLES_AND_PERMISSIONS_MAP.md#discrepancies-and-boundaries).

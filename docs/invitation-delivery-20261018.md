@@ -37,7 +37,7 @@ Two further defects were verified in code and regression tests: resend responses
 |---|---|
 | [accounts/invitations.py](../backend/apps/accounts/invitations.py) | Transactional reservation, idempotent dispatch, token checks, fresh status |
 | [accounts/auth.py](../backend/apps/accounts/auth.py) | Transport classification, safe failures, normalized setup URL |
-| [accounts/views.py](../backend/apps/accounts/views.py), [accounts/importing.py](../backend/apps/accounts/importing.py), [academics/admission.py](../backend/apps/academics/admission.py) | Integrate reservation and post-commit sending into all account-creation paths |
+| [accounts/views.py](../backend/apps/accounts/views/__init__.py), [accounts/importing.py](../backend/apps/accounts/importing.py), [academics/admission.py](../backend/apps/academics/admission.py) | Integrate reservation and post-commit sending into all account-creation paths |
 | [accounts/models.py](../backend/apps/accounts/models.py), [0009 migration](../backend/apps/accounts/migrations/0009_invitation_delivery_evidence.py) | Explicit delivery evidence choices without rewriting history |
 | [check_invitation_delivery.py](../backend/apps/accounts/management/commands/check_invitation_delivery.py) | Read-only, credential-free configuration/account diagnostic; never connects to SMTP |
 | [InvitationReview.tsx](../frontend/src/features/resources/InvitationReview.tsx) | Immediate, truthful delivery feedback and retry behavior |

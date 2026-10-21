@@ -1,59 +1,16 @@
-import csv
-
-from django.db.models import (
-    Case,
-    Count,
-    IntegerField,
-    Q,
-    Value,
-    When,
-)
-from django.http import StreamingHttpResponse
-
-from drf_spectacular.types import OpenApiTypes
+"""Insights predictions API; extracted without changing behavior."""
+from django.db.models import Case, IntegerField, Q, Value, When
 from drf_spectacular.utils import extend_schema
-
 from rest_framework.decorators import api_view
-from rest_framework.exceptions import (
-    PermissionDenied,
-    ValidationError,
-)
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
-
-from apps.accounts.models import Institute, Membership, User
+from apps.accounts.models import Membership
 from apps.accounts.scope import Scope
-
 from apps.academics.models import Enrollment
-from apps.academics.views import TenantViewSet
-
-from apps.learning.models import (
-    Attendance,
-    Assignment,
-    Submission,
-    Lesson,
-    Completion,
-)
-
-from .models import Audit, Activity, Prediction
-from .services import gradebook, student_features
-from .gradebook import iter_gradebook
-from .filters import (
-    enrollment_queryset,
-    query_values,
-    ReportPagination,
-    ReportQuery,
-)
-from .contracts import (
-    PredictionInput,
-    PredictionResult,
-    PredictionPage,
-)
-from .report_contracts import (
-    DashboardResult,
-    PlatformResult,
-    GradePage,
-    ModelStatusResult,
-)
+from ..models import Prediction
+from ..filters import enrollment_queryset, query_values, ReportPagination, ReportQuery
+from ..contracts import PredictionInput, PredictionResult, PredictionPage
+from ..report_contracts import ModelStatusResult
 
 
 def prediction_risk_order():
@@ -112,248 +69,6 @@ def require_prediction_instructor(scope, user, offering):
             "Only assigned instructors can generate "
             "predictions for this class."
         )
-
-
-@extend_schema(responses=DashboardResult)
-@api_view(["GET"])
-def analytics(request):
-    scope = Scope(request)
-
-    offerings = scope.offerings()
-    structure_counts = {}
-    if scope.role == "admin":
-        from apps.accounts.institution import academic_config
-        from apps.academics.models import Program, Section, Course, Term, Unit, AdmissionBatch
-        config = academic_config(scope.institute)
-        for key, model in [("program", Program), ("section", Section), ("course", Course)]:
-            structure_counts[key] = model.objects.filter(institute=scope.institute, active=True).count()
-        structure_counts["term"] = Term.objects.filter(institute=scope.institute, status="active").count()
-        if config["departments"]:
-            structure_counts["unit"] = Unit.objects.filter(institute=scope.institute).count()
-        if config["batches"]:
-            structure_counts["batch"] = AdmissionBatch.objects.filter(institute=scope.institute, active=True).count()
-
-    enrollments = Enrollment.objects.filter(
-        offering__in=offerings,
-        active=True,
-    )
-
-    attendance = Attendance.objects.filter(
-        session__offering__in=offerings,
-    ).exclude(
-        status="excused",
-    )
-
-    submissions = Submission.objects.filter(
-        assignment__offering__in=offerings,
-    )
-
-    activity = Activity.objects.filter(
-        offering__in=offerings,
-    )
-
-    if scope.role == "student":
-        enrollments = enrollments.filter(
-            student=request.user,
-        )
-
-        attendance = attendance.filter(
-            student=request.user,
-        )
-
-        submissions = submissions.filter(
-            student=request.user,
-        )
-
-        activity = activity.filter(
-            user=request.user,
-        )
-
-    attendance_count = attendance.count()
-
-    present_count = attendance.filter(
-        status__in=["present", "late"],
-    ).count()
-
-    attendance_pct = (
-        round(
-            present_count / attendance_count * 100,
-            1,
-        )
-        if attendance_count
-        else None
-    )
-
-    return Response(
-        {
-            "active_courses": offerings.filter(
-                archived=False,
-            ).count(),
-            "students": (
-                enrollments.values("student")
-                .distinct()
-                .count()
-            ),
-            "teachers": (
-                User.objects.filter(
-                    teaching__in=offerings,
-                )
-                .distinct()
-                .count()
-            ),
-            "enrollments": enrollments.count(),
-            "attendance_pct": attendance_pct,
-            "submissions": submissions.count(),
-            "activity_events": activity.count(),
-            "gradebook": gradebook(
-                scope,
-                enrollment_queryset(scope)[:5],
-            ),
-            "gradebook_preview_limit": 5,
-            "activity_by_kind": list(
-                activity.values("kind").annotate(
-                    count=Count("id"),
-                )
-            ),
-            "institute": scope.institute.name,
-            "role": scope.role,
-            "structure_counts": structure_counts,
-        }
-    )
-
-
-@extend_schema(responses=PlatformResult)
-@api_view(["GET"])
-def platform(request):
-    if not request.user.is_superuser:
-        raise PermissionDenied()
-
-    return Response(
-        {
-            "institutes": Institute.objects.count(),
-            "active_institutes": Institute.objects.filter(
-                active=True,
-            ).count(),
-            "institute_administrators": Membership.objects.filter(
-                role="admin", active=True, user__is_active=True, institute__active=True,
-            ).values("user_id").distinct().count(),
-            "users": User.objects.count(),
-            "memberships": Membership.objects.filter(
-                active=True,
-            ).count(),
-        }
-    )
-
-
-@extend_schema(
-    parameters=[ReportQuery],
-    responses=GradePage,
-)
-@api_view(["GET"])
-def grades(request):
-    scope = Scope(request)
-
-    queryset = enrollment_queryset(
-        scope,
-        query_values(request),
-    )
-
-    paginator = ReportPagination()
-
-    page = paginator.paginate_queryset(
-        queryset,
-        request,
-    )
-
-    return paginator.get_paginated_response(
-        gradebook(scope, page),
-    )
-
-
-@extend_schema(
-    parameters=[ReportQuery],
-    responses={
-        (200, "text/csv"): OpenApiTypes.STR,
-    },
-)
-@api_view(["GET"])
-def report(request):
-    scope = Scope(request)
-
-    scope.require(
-        "admin",
-        "head",
-        "teacher",
-    )
-
-    queryset = enrollment_queryset(
-        scope,
-        query_values(request),
-    )
-
-    keys = [
-        "student_label",
-        "offering_label",
-        "score",
-        "letter_grade",
-        "grade_points",
-        "attendance_pct",
-        "assignment_pct",
-        "quiz_pct",
-        "manual_pct",
-        "completion_pct",
-    ]
-
-    class Echo:
-        def write(self, value):
-            return value
-
-    writer = csv.writer(Echo())
-
-    def stream():
-        yield writer.writerow(keys)
-
-        for row in iter_gradebook(
-            scope,
-            queryset,
-        ):
-            values = [
-                row.get(key, "")
-                for key in keys
-            ]
-
-            safe_values = []
-
-            for value in values:
-                if (
-                    isinstance(value, str)
-                    and value.startswith(
-                        (
-                            "=",
-                            "+",
-                            "-",
-                            "@",
-                            "\t",
-                            "\r",
-                        )
-                    )
-                ):
-                    value = "'" + value
-
-                safe_values.append(value)
-
-            yield writer.writerow(safe_values)
-
-    response = StreamingHttpResponse(
-        stream(),
-        content_type="text/csv",
-    )
-
-    response["Content-Disposition"] = (
-        'attachment; filename="course-progress.csv"'
-    )
-
-    return response
 
 
 @extend_schema(responses=ModelStatusResult)
@@ -429,7 +144,7 @@ def predictions(request):
                 )
 
         if "stage" in values:
-            from .filters import restrict_report_pairs
+            from ..filters import restrict_report_pairs
             queryset = restrict_report_pairs(queryset, enrollment_queryset(scope, values))
 
         search = values.get("search")
@@ -549,7 +264,7 @@ def predictions(request):
     )
 
     from ml.inference import infer, status
-    from .prediction_inputs import prediction_inputs
+    from ..prediction_inputs import prediction_inputs
     from apps.accounts.models import Membership
     if not Membership.objects.filter(institute=scope.institute, user=enrollment.student,
             active=True, role="student", user__is_active=True).exists():
@@ -582,25 +297,3 @@ def predictions(request):
         result["observations"] = evidence
 
     return Response(result)
-
-
-class AuditViewSet(TenantViewSet):
-    model = Audit
-
-    http_method_names = [
-        "get",
-        "head",
-        "options",
-    ]
-
-    def get_queryset(self):
-        if getattr(
-            self,
-            "swagger_fake_view",
-            False,
-        ):
-            return self.model.objects.none()
-
-        self.scope.require("admin")
-
-        return super().get_queryset()
